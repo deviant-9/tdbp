@@ -12,14 +12,14 @@ pub trait LendingIterator {
     where
         Self: 'a;
 
-    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;
+    fn next(&mut self) -> Option<Self::Item<'_>>;
 }
 
 pub trait IterTrait {
     type ID;
     type T;
 
-    fn next<'a>(&'a mut self) -> Option<(&'a Self::ID, &'a Self::T)>;
+    fn next(&mut self) -> Option<(&Self::ID, &Self::T)>;
 }
 
 // TODO implement LendingIterator for IterTrait
@@ -28,7 +28,7 @@ pub trait IterMutTrait {
     type ID;
     type T;
 
-    fn next<'a>(&'a mut self) -> Option<(&'a Self::ID, &'a mut Self::T)>;
+    fn next(&mut self) -> Option<(&Self::ID, &mut Self::T)>;
 }
 
 // TODO implement LendingIterator for IterMutTrait
@@ -59,13 +59,13 @@ pub trait Repository: Clone {
     fn delete(&mut self, id: &Self::ID) -> Result<(), DeletionError>;
     fn exists(&self, id: &Self::ID) -> bool;
 
-    fn get<'a>(&'a self, id: &Self::ID) -> Option<Self::Get<'a>>;
-    fn get_mut<'a>(&'a mut self, id: &Self::ID) -> Option<Self::GetMut<'a>>;
+    fn get(&self, id: &Self::ID) -> Option<Self::Get<'_>>;
+    fn get_mut(&mut self, id: &Self::ID) -> Option<Self::GetMut<'_>>;
 
-    fn iter<'a>(&'a self) -> Self::Iter<'a>;
-    fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a>;
+    fn iter(&self) -> Self::Iter<'_>;
+    fn iter_mut(&mut self) -> Self::IterMut<'_>;
 
-    fn get_ids<'a>(&'a self) -> Self::GetIds<'a>;
+    fn get_ids(&self) -> Self::GetIds<'_>;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -160,33 +160,33 @@ impl<T: DataTrait> Repository for RepositoryImpl<T> {
     }
 
     #[inline]
-    fn get<'a>(&'a self, id: &<Self as Repository>::ID) -> Option<GetImpl<'a, T>> {
+    fn get(&self, id: &<Self as Repository>::ID) -> Option<GetImpl<'_, T>> {
         self.objs.get(id).map(|obj| GetImpl { obj: &**obj })
     }
 
     #[inline]
-    fn get_mut<'a>(&'a mut self, id: &<Self as Repository>::ID) -> Option<GetMutImpl<'a, T>> {
+    fn get_mut(&mut self, id: &<Self as Repository>::ID) -> Option<GetMutImpl<'_, T>> {
         self.objs.get_mut(id).map(|obj| GetMutImpl {
             obj: Rc::make_mut(obj),
         })
     }
 
     #[inline]
-    fn iter<'a>(&'a self) -> Self::Iter<'a> {
+    fn iter(&self) -> Self::Iter<'_> {
         IterImpl {
             iter: self.objs.iter(),
         }
     }
 
     #[inline]
-    fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a> {
+    fn iter_mut(&mut self) -> Self::IterMut<'_> {
         IterMutImpl {
             iter: self.objs.iter_mut(),
         }
     }
 
     #[inline]
-    fn get_ids<'a>(&'a self) -> Self::GetIds<'a> {
+    fn get_ids(&self) -> Self::GetIds<'_> {
         self.objs.keys().cloned()
     }
 }
@@ -233,7 +233,7 @@ impl<'a, ID: 'a, T: 'a + DataTrait> IterTrait for IterImpl<'a, ID, T> {
     type T = T;
 
     #[inline]
-    fn next<'b>(&'b mut self) -> Option<(&ID, &T)> {
+    fn next(&mut self) -> Option<(&ID, &T)> {
         self.iter.next().map(|(id, obj)| (id, &**obj))
     }
 }
@@ -247,7 +247,7 @@ impl<'a, ID: 'a, T: 'a + DataTrait> IterMutTrait for IterMutImpl<'a, ID, T> {
     type T = T;
 
     #[inline]
-    fn next<'b>(&'b mut self) -> Option<(&ID, &mut T)> {
+    fn next(&mut self) -> Option<(&ID, &mut T)> {
         self.iter.next().map(|(id, obj)| (id, Rc::make_mut(obj)))
     }
 }
