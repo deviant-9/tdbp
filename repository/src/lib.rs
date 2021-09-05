@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 pub trait LendingIterator {
     type Item<'a>
@@ -74,7 +75,8 @@ pub enum DeletionError {
 
 #[derive(Clone)]
 pub struct RepositoryImpl<T: DataTrait> {
-    objs: HashMap<<Self as Repository>::ID, T>,
+    // TODO try persistent data structures (im crate)
+    objs: HashMap<<Self as Repository>::ID, Rc<T>>,
     next_id: <Self as Repository>::ID,
 }
 
@@ -112,19 +114,19 @@ impl<T: DataTrait> Repository for RepositoryImpl<T> {
     fn create(&mut self, data: Self::T) -> Self::ID {
         let id = self.next_id;
         self.next_id = self.next_id.checked_add(1).expect("ID overflowed!");
-        self.objs.insert(id, data);
+        self.objs.insert(id, Rc::new(data));
         id
     }
 
     #[inline]
     fn read(&self, id: &Self::ID) -> Option<Self::T> {
-        self.objs.get(&id).cloned()
+        self.objs.get(&id).map(|obj_rc| (**obj_rc).clone())
     }
 
     #[inline]
     fn update(&mut self, id: &Self::ID, new_data: Self::T) -> Result<(), UpdatingError> {
         if let Some(obj) = self.objs.get_mut(id) {
-            *obj = new_data;
+            *Rc::make_mut(obj) = new_data;
             Ok(())
         } else {
             Err(UpdatingError::NoSuchID)
@@ -147,12 +149,14 @@ impl<T: DataTrait> Repository for RepositoryImpl<T> {
 
     #[inline]
     fn get<'a>(&'a self, id: &<Self as Repository>::ID) -> Option<GetImpl<'a, T>> {
-        self.objs.get(id).map(|obj| GetImpl { obj })
+        self.objs.get(id).map(|obj| GetImpl { obj: &**obj })
     }
 
     #[inline]
     fn get_mut<'a>(&'a mut self, id: &<Self as Repository>::ID) -> Option<GetMutImpl<'a, T>> {
-        self.objs.get_mut(id).map(|obj| GetMutImpl { obj })
+        self.objs.get_mut(id).map(|obj| GetMutImpl {
+            obj: Rc::make_mut(obj),
+        })
     }
 
     #[inline]
@@ -204,29 +208,29 @@ impl<'a, T: DataTrait> DerefMut for GetMutImpl<'a, T> {
 }
 
 pub struct IterImpl<'a, ID: 'a, T: 'a> {
-    iter: std::collections::hash_map::Iter<'a, ID, T>,
+    iter: std::collections::hash_map::Iter<'a, ID, Rc<T>>,
 }
 
-impl<'a, ID: 'a, T: 'a> IterTrait for IterImpl<'a, ID, T> {
+impl<'a, ID: 'a, T: 'a + DataTrait> IterTrait for IterImpl<'a, ID, T> {
     type ID = ID;
     type T = T;
 
     #[inline]
     fn next<'b>(&'b mut self) -> Option<(&ID, &T)> {
-        self.iter.next()
+        self.iter.next().map(|(id, obj)| (id, &**obj))
     }
 }
 
 pub struct IterMutImpl<'a, ID: 'a, T: 'a> {
-    iter: std::collections::hash_map::IterMut<'a, ID, T>,
+    iter: std::collections::hash_map::IterMut<'a, ID, Rc<T>>,
 }
 
-impl<'a, ID: 'a, T: 'a> IterMutTrait for IterMutImpl<'a, ID, T> {
+impl<'a, ID: 'a, T: 'a + DataTrait> IterMutTrait for IterMutImpl<'a, ID, T> {
     type ID = ID;
     type T = T;
 
     #[inline]
     fn next<'b>(&'b mut self) -> Option<(&ID, &mut T)> {
-        self.iter.next()
+        self.iter.next().map(|(id, obj)| (id, Rc::make_mut(obj)))
     }
 }
