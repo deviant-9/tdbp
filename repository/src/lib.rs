@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![feature(trait_alias)]
 #![feature(generic_associated_types)]
+#![feature(type_alias_impl_trait)]
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -50,6 +51,7 @@ pub trait Repository: Clone {
     type IterMut<'a>: IterMutTrait<ID = Self::ID, T = Self::T>
     where
         Self: 'a;
+    type GetIds<'a>: Iterator<Item = Self::ID>;
 
     fn create(&mut self, data: Self::T) -> Self::ID;
     fn read(&self, id: &Self::ID) -> Option<Self::T>;
@@ -62,6 +64,8 @@ pub trait Repository: Clone {
 
     fn iter<'a>(&'a self) -> Self::Iter<'a>;
     fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a>;
+
+    fn get_ids<'a>(&'a self) -> Self::GetIds<'a>;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -116,6 +120,7 @@ impl<T: DataTrait> Repository for RepositoryImpl<T> {
     where
         Self: 'a,
     = IterMutImpl<'a, Self::ID, Self::T>;
+    type GetIds<'a> = impl Iterator<Item = Self::ID>;
 
     #[inline]
     fn create(&mut self, data: Self::T) -> Self::ID {
@@ -178,6 +183,11 @@ impl<T: DataTrait> Repository for RepositoryImpl<T> {
         IterMutImpl {
             iter: self.objs.iter_mut(),
         }
+    }
+
+    #[inline]
+    fn get_ids<'a>(&'a self) -> Self::GetIds<'a> {
+        self.objs.keys().cloned()
     }
 }
 
