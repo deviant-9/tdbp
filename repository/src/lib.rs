@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![feature(trait_alias)]
 #![feature(generic_associated_types)]
 
