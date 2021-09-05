@@ -32,7 +32,7 @@ pub trait IterMutTrait {
 
 // TODO implement LendingIterator for IterMutTrait
 
-pub trait IDTrait = Clone;
+pub trait IDTrait = Clone + Eq;
 pub trait DataTrait = Clone;
 
 pub trait Repository: Clone {
