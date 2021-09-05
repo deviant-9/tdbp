@@ -91,6 +91,12 @@ impl<T: DataTrait> RepositoryImpl<T> {
     }
 }
 
+impl<T: DataTrait> Default for RepositoryImpl<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: DataTrait> Repository for RepositoryImpl<T> {
     type ID = u64;
     type T = T;
