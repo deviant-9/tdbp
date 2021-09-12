@@ -78,10 +78,11 @@ pub enum DeletionError {
     NoSuchID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct RepositoryImpl<T: DataTrait> {
     // TODO try persistent data structures (im crate)
     objs: HashMap<<Self as Repository>::ID, Rc<T>>,
+    // Ideally should not be used for PartialEq deriving, but it is not a big deal
     next_id: <Self as Repository>::ID,
 }
 
