@@ -535,7 +535,7 @@ pub struct ExactMarkNonRefDataGetMut<
     'a,
     FrameID: 'a,
     ObjectID: 'a,
-    ExactMarksRepo: Repository<T = ExactMark<FrameID, ObjectID>>,
+    ExactMarksRepo: 'a + Repository<T = ExactMark<FrameID, ObjectID>>,
 > {
     exact_mark_get_mut: ExactMarksRepo::GetMut<'a>,
 }
@@ -620,7 +620,7 @@ pub struct InexactMarkNonRefDataGetMut<
     'a,
     FrameID: 'a,
     ObjectID: 'a,
-    InexactMarksRepo: Repository<T = InexactMark<FrameID, ObjectID>>,
+    InexactMarksRepo: 'a + Repository<T = InexactMark<FrameID, ObjectID>>,
 > {
     inexact_mark_get_mut: InexactMarksRepo::GetMut<'a>,
 }

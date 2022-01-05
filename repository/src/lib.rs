@@ -41,17 +41,21 @@ pub trait Repository: Clone {
     type T: DataTrait;
     type Get<'a>: Deref<Target = Self::T>
     where
-        Self::T: 'a;
+        Self::T: 'a,
+        Self: 'a;
     type GetMut<'a>: DerefMut<Target = Self::T>
     where
-        Self::T: 'a;
+        Self::T: 'a,
+        Self: 'a;
     type Iter<'a>: IterTrait<ID = Self::ID, T = Self::T>
     where
         Self: 'a;
     type IterMut<'a>: IterMutTrait<ID = Self::ID, T = Self::T>
     where
         Self: 'a;
-    type GetIds<'a>: Iterator<Item = Self::ID>;
+    type GetIds<'a>: Iterator<Item = Self::ID>
+    where
+        Self: 'a;
 
     fn create(&mut self, data: Self::T) -> Self::ID;
     fn read(&self, id: &Self::ID) -> Option<Self::T>;
@@ -121,7 +125,10 @@ impl<T: DataTrait> Repository for RepositoryImpl<T> {
     where
         Self: 'a,
     = IterMutImpl<'a, Self::ID, Self::T>;
-    type GetIds<'a> = impl Iterator<Item = Self::ID>;
+    type GetIds<'a>
+    where
+        Self: 'a,
+    = impl Iterator<Item = Self::ID>;
 
     #[inline]
     fn create(&mut self, data: Self::T) -> Self::ID {
