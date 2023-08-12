@@ -1,4 +1,6 @@
+use crate::array_utils::ArrayExt;
 use crate::tensors::{CoSpace, Space, Tensor2};
+use std::array::from_fn;
 use std::ops::{Add, Mul, Neg, Sub};
 
 impl<T: Clone, S0: Space<2>, S1: Space<2>> Tensor2<T, S0, CoSpace<2, S1>, 2, 2>
@@ -19,75 +21,156 @@ where
     }
 }
 
-impl<T: Clone, S0: Space<3>, S1: Space<3>> Tensor2<T, S0, CoSpace<3, S1>, 3, 3>
+macro_rules! adjugate_impl {
+    ($n:expr) => {
+        impl<T: Clone, S0: Space<$n>, S1: Space<$n>> Tensor2<T, S0, CoSpace<$n, S1>, $n, $n>
+        where
+            for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+            for<'a> &'a T: Neg<Output = T>,
+        {
+            pub fn adjugate(&self) -> Tensor2<T, S1, CoSpace<$n, S0>, $n, $n> {
+                Tensor2::from_raw(
+                    self.s1.0.clone(),
+                    CoSpace(self.s0.clone()),
+                    from_fn(|i| {
+                        from_fn(|j| {
+                            let cofactor = self.raw.sub_matrix(j, i).det();
+                            if ((i % 2) ^ (j % 2)) == 0 {
+                                cofactor
+                            } else {
+                                -&cofactor
+                            }
+                        })
+                    }),
+                )
+            }
+        }
+    };
+}
+
+adjugate_impl!(3);
+adjugate_impl!(4);
+adjugate_impl!(5);
+adjugate_impl!(6);
+adjugate_impl!(7);
+adjugate_impl!(8);
+adjugate_impl!(9);
+adjugate_impl!(10);
+adjugate_impl!(11);
+adjugate_impl!(12);
+adjugate_impl!(13);
+adjugate_impl!(14);
+adjugate_impl!(15);
+adjugate_impl!(16);
+
+trait DetExt {
+    type Output;
+    fn det(&self) -> Self::Output;
+}
+
+impl<T> DetExt for [[T; 2]; 2]
 where
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
     for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
 {
-    pub fn adjugate(&self) -> Tensor2<T, S1, CoSpace<3, S0>, 3, 3> {
-        let raw = &self.raw;
-        let minor = |i0: usize, i1: usize, j0: usize, j1: usize| {
-            &(&raw[i0][j0] * &raw[i1][j1]) - &(&raw[i0][j1] * &raw[i1][j0])
-        };
-        Tensor2::from_raw(
-            self.s1.0.clone(),
-            CoSpace(self.s0.clone()),
-            [
-                [minor(1, 2, 1, 2), minor(2, 0, 1, 2), minor(0, 1, 1, 2)],
-                [minor(1, 2, 2, 0), minor(2, 0, 2, 0), minor(0, 1, 2, 0)],
-                [minor(1, 2, 0, 1), minor(2, 0, 0, 1), minor(0, 1, 0, 1)],
-            ],
-        )
+    type Output = T;
+
+    #[inline]
+    fn det(&self) -> Self::Output {
+        &(&self[0][0] * &self[1][1]) - &(&self[0][1] * &self[1][0])
     }
 }
 
-impl<T: Clone, S0: Space<4>, S1: Space<4>> Tensor2<T, S0, CoSpace<4, S1>, 4, 4>
-where
-    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
-    for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
-    for<'a, 'b> &'a T: Add<&'b T, Output = T>,
-{
-    pub fn adjugate(&self) -> Tensor2<T, S1, CoSpace<4, S0>, 4, 4> {
-        let raw = &self.raw;
-        let minor2 = |i0: usize, i1: usize, j0: usize, j1: usize| {
-            &(&raw[i0][j0] * &raw[i1][j1]) - &(&raw[i0][j1] * &raw[i1][j0])
-        };
-        let minor = |i0: usize, i1: usize, i2: usize, j0: usize, j1: usize, j2: usize| {
-            &(&(&raw[i0][j0] * &minor2(i1, i2, j1, j2)) + &(&raw[i0][j1] * &minor2(i1, i2, j2, j0)))
-                + &(&raw[i0][j2] * &minor2(i1, i2, j0, j1))
-        };
-        Tensor2::from_raw(
-            self.s1.0.clone(),
-            CoSpace(self.s0.clone()),
-            [
-                [
-                    minor(1, 2, 3, 1, 2, 3),
-                    minor(0, 3, 2, 1, 2, 3),
-                    minor(3, 0, 1, 1, 2, 3),
-                    minor(2, 1, 0, 1, 2, 3),
-                ],
-                [
-                    minor(1, 2, 3, 0, 3, 2),
-                    minor(0, 3, 2, 0, 3, 2),
-                    minor(3, 0, 1, 0, 3, 2),
-                    minor(2, 1, 0, 0, 3, 2),
-                ],
-                [
-                    minor(1, 2, 3, 3, 0, 1),
-                    minor(0, 3, 2, 3, 0, 1),
-                    minor(3, 0, 1, 3, 0, 1),
-                    minor(2, 1, 0, 3, 0, 1),
-                ],
-                [
-                    minor(1, 2, 3, 2, 1, 0),
-                    minor(0, 3, 2, 2, 1, 0),
-                    minor(3, 0, 1, 2, 1, 0),
-                    minor(2, 1, 0, 2, 1, 0),
-                ],
-            ],
-        )
-    }
+macro_rules! det_ext_impl {
+    ($n:expr) => {
+        impl<T: Clone> DetExt for [[T; $n]; $n]
+        where
+            for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+        {
+            type Output = T;
+
+            #[inline]
+            fn det(&self) -> Self::Output {
+                let without_0_col: [[T; $n - 1]; $n] =
+                    self.ref_map(|row| from_fn(|j| row[j + 1].clone()));
+                let without_00: &[[T; $n - 1]; $n - 1] = without_0_col[1..].try_into().unwrap();
+                let mut result: T = &self[0][0] * &without_00.det();
+                for det_i in 1..self.len() {
+                    let without_i0: [[T; $n - 1]; $n - 1] = from_fn(|i| {
+                        let fixed_i = if i < det_i { i } else { i + 1 };
+                        without_0_col[fixed_i].clone()
+                    });
+                    let term: T = &self[det_i][0] * &without_i0.det();
+                    if det_i % 2 == 0 {
+                        result = &result + &term;
+                    } else {
+                        result = &result - &term;
+                    }
+                }
+                result
+            }
+        }
+    };
 }
+
+det_ext_impl!(3);
+det_ext_impl!(4);
+det_ext_impl!(5);
+det_ext_impl!(6);
+det_ext_impl!(7);
+det_ext_impl!(8);
+det_ext_impl!(9);
+det_ext_impl!(10);
+det_ext_impl!(11);
+det_ext_impl!(12);
+det_ext_impl!(13);
+det_ext_impl!(14);
+det_ext_impl!(15);
+
+trait SubMatrixExt {
+    type Output;
+    fn sub_matrix(&self, omit_i: usize, omit_j: usize) -> Self::Output;
+}
+
+macro_rules! sub_matrix_ext_impl {
+    ($n0:expr, $n1:expr) => {
+        impl<T: Clone> SubMatrixExt for [[T; $n1]; $n0] {
+            type Output = [[T; $n1 - 1]; $n0 - 1];
+
+            #[inline]
+            fn sub_matrix(&self, omit_i: usize, omit_j: usize) -> Self::Output {
+                assert!(omit_i < $n0);
+                assert!(omit_j < $n1);
+                from_fn(|i| {
+                    let fixed_i = if i < omit_i { i } else { i + 1 };
+                    from_fn(|j| {
+                        let fixed_j = if j < omit_j { j } else { j + 1 };
+                        self[fixed_i][fixed_j].clone()
+                    })
+                })
+            }
+        }
+    };
+}
+
+sub_matrix_ext_impl!(3, 3);
+sub_matrix_ext_impl!(4, 4);
+sub_matrix_ext_impl!(5, 5);
+sub_matrix_ext_impl!(6, 6);
+sub_matrix_ext_impl!(7, 7);
+sub_matrix_ext_impl!(8, 8);
+sub_matrix_ext_impl!(9, 9);
+sub_matrix_ext_impl!(10, 10);
+sub_matrix_ext_impl!(11, 11);
+sub_matrix_ext_impl!(12, 12);
+sub_matrix_ext_impl!(13, 13);
+sub_matrix_ext_impl!(14, 14);
+sub_matrix_ext_impl!(15, 15);
+sub_matrix_ext_impl!(16, 16);
 
 #[cfg(test)]
 mod tests {
@@ -115,6 +198,13 @@ mod tests {
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct S1_4;
     impl Space<4> for S1_4 {}
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    struct S0_5;
+    impl Space<5> for S0_5 {}
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    struct S1_5;
+    impl Space<5> for S1_5 {}
 
     macro_rules! assert_homogenous_eq {
         ($lhs:expr, $rhs:expr) => {
@@ -197,6 +287,37 @@ mod tests {
                 [16., 25., 39., 36.],
                 [22., 72., 10., 63.],
                 [35., 84., 71., 26.],
+            ],
+        );
+        let adjugate = t.adjugate();
+        assert_homogenous_eq!(
+            t.contract_tensor2_10(&adjugate).raw.flatten(),
+            so_identity.raw.flatten()
+        );
+    }
+
+    #[test]
+    fn test_tensor2_5_adjugate() {
+        let so_identity = Tensor2::from_raw(
+            S0_5,
+            CoSpace(S0_5),
+            [
+                [1., 0., 0., 0., 0.],
+                [0., 1., 0., 0., 0.],
+                [0., 0., 1., 0., 0.],
+                [0., 0., 0., 1., 0.],
+                [0., 0., 0., 0., 1.],
+            ],
+        );
+        let t = Tensor2::from_raw(
+            S0_5,
+            CoSpace(S1_5),
+            [
+                [75., 87., 55., 32., 44.],
+                [16., 25., 39., 36., 55.],
+                [22., 72., 10., 63., 58.],
+                [35., 84., 71., 26., 94.],
+                [67., 58., 89., 97., 25.],
             ],
         );
         let adjugate = t.adjugate();
