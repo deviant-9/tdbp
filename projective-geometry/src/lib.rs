@@ -8,7 +8,7 @@ pub mod array_utils;
 pub mod scalar_traits;
 pub mod tensors;
 pub mod levi_civita;
-pub mod inverse;
+pub mod adjugate;
 pub mod projective_primitives;
 pub mod camera;
 pub mod homography;

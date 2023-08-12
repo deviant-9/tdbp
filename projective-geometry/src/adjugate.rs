@@ -6,7 +6,7 @@ where
     for<'a> &'a T: Neg<Output = T>,
 {
     #[inline]
-    pub fn up_to_scale_inverse(&self) -> Tensor2<T, S1, CoSpace<2, S0>, 2, 2> {
+    pub fn adjugate(&self) -> Tensor2<T, S1, CoSpace<2, S0>, 2, 2> {
         let raw = &self.raw;
         Tensor2::from_raw(
             self.s1.0.clone(),
@@ -24,7 +24,7 @@ where
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
     for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
 {
-    pub fn up_to_scale_inverse(&self) -> Tensor2<T, S1, CoSpace<3, S0>, 3, 3> {
+    pub fn adjugate(&self) -> Tensor2<T, S1, CoSpace<3, S0>, 3, 3> {
         let raw = &self.raw;
         let minor = |i0: usize, i1: usize, j0: usize, j1: usize| {
             &(&raw[i0][j0] * &raw[i1][j1]) - &(&raw[i0][j1] * &raw[i1][j0])
@@ -47,7 +47,7 @@ where
     for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
     for<'a, 'b> &'a T: Add<&'b T, Output = T>,
 {
-    pub fn up_to_scale_inverse(&self) -> Tensor2<T, S1, CoSpace<4, S0>, 4, 4> {
+    pub fn adjugate(&self) -> Tensor2<T, S1, CoSpace<4, S0>, 4, 4> {
         let raw = &self.raw;
         let minor2 = |i0: usize, i1: usize, j0: usize, j1: usize| {
             &(&raw[i0][j0] * &raw[i1][j1]) - &(&raw[i0][j1] * &raw[i1][j0])
@@ -148,18 +148,18 @@ mod tests {
     }
 
     #[test]
-    fn test_tensor2_2_inverse_up_to_scale() {
+    fn test_tensor2_2_adjugate() {
         let so_identity = Tensor2::from_raw(S0_2, CoSpace(S0_2), [[1., 0.], [0., 1.]]);
         let t = Tensor2::from_raw(S0_2, CoSpace(S1_2), [[97., 17.], [41., 37.]]);
-        let inverse = t.up_to_scale_inverse();
+        let adjugate = t.adjugate();
         assert_homogenous_eq!(
-            t.contract_tensor2_10(&inverse).raw.flatten(),
+            t.contract_tensor2_10(&adjugate).raw.flatten(),
             so_identity.raw.flatten()
         );
     }
 
     #[test]
-    fn test_tensor2_3_inverse_up_to_scale() {
+    fn test_tensor2_3_adjugate() {
         let so_identity = Tensor2::from_raw(
             S0_3,
             CoSpace(S0_3),
@@ -170,15 +170,15 @@ mod tests {
             CoSpace(S1_3),
             [[85., 16., 96.], [19., 64., 13.], [16., 42., 67.]],
         );
-        let inverse = t.up_to_scale_inverse();
+        let adjugate = t.adjugate();
         assert_homogenous_eq!(
-            t.contract_tensor2_10(&inverse).raw.flatten(),
+            t.contract_tensor2_10(&adjugate).raw.flatten(),
             so_identity.raw.flatten()
         );
     }
 
     #[test]
-    fn test_tensor2_4_inverse_up_to_scale() {
+    fn test_tensor2_4_adjugate() {
         let so_identity = Tensor2::from_raw(
             S0_4,
             CoSpace(S0_4),
@@ -199,9 +199,9 @@ mod tests {
                 [35., 84., 71., 26.],
             ],
         );
-        let inverse = t.up_to_scale_inverse();
+        let adjugate = t.adjugate();
         assert_homogenous_eq!(
-            t.contract_tensor2_10(&inverse).raw.flatten(),
+            t.contract_tensor2_10(&adjugate).raw.flatten(),
             so_identity.raw.flatten()
         );
     }

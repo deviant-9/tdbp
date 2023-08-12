@@ -22,7 +22,7 @@ impl<SIn: Space<N>, SOut: Space<N>, const N: usize> H<SIn, SOut, N> {
 impl<SIn: Space<2>, SOut: Space<2>> H<SIn, SOut, 2> {
     #[inline]
     pub fn inverse(&self) -> H<SOut, SIn, 2> {
-        H::from_tensor(&self.0.up_to_scale_inverse())
+        H::from_tensor(&self.0.adjugate())
     }
 
     #[inline]
@@ -34,7 +34,7 @@ impl<SIn: Space<2>, SOut: Space<2>> H<SIn, SOut, 2> {
 impl<SIn: Space<3>, SOut: Space<3>> H<SIn, SOut, 3> {
     #[inline]
     pub fn inverse(&self) -> H<SOut, SIn, 3> {
-        H::from_tensor(&self.0.up_to_scale_inverse())
+        H::from_tensor(&self.0.adjugate())
     }
 
     #[inline]
@@ -59,7 +59,7 @@ impl<SIn: Space<3>, SOut: Space<3>> H<SIn, SOut, 3> {
 impl<SIn: Space<4>, SOut: Space<4>> H<SIn, SOut, 4> {
     #[inline]
     pub fn inverse(&self) -> H<SOut, SIn, 4> {
-        H::from_tensor(&self.0.up_to_scale_inverse())
+        H::from_tensor(&self.0.adjugate())
     }
 
     #[inline]
