@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Neg, Sub};
 
 pub trait Zero {
     fn zero() -> Self;
@@ -65,6 +65,17 @@ const F64_MANTISSA_BITS: u32 = f64::MANTISSA_DIGITS - 1;
 const F64_SIGN_MASK: u64 = 1u64 << 63;
 const F64_EXP_MASK: u64 = ((!1u64) << F64_MANTISSA_BITS) & !F64_SIGN_MASK;
 
+pub trait ScalarNeg: Neg {}
+
+impl ScalarNeg for &f64 {}
+impl ScalarNeg for &f32 {}
+impl ScalarNeg for &i8 {}
+impl ScalarNeg for &i16 {}
+impl ScalarNeg for &i32 {}
+impl ScalarNeg for &i64 {}
+impl ScalarNeg for &i128 {}
+impl ScalarNeg for &isize {}
+
 pub trait ScalarAdd<Rhs>: Add<Rhs> {}
 
 impl ScalarAdd<&f64> for &f64 {}
@@ -81,6 +92,23 @@ impl ScalarAdd<&u32> for &u32 {}
 impl ScalarAdd<&u64> for &u64 {}
 impl ScalarAdd<&u128> for &u128 {}
 impl ScalarAdd<&usize> for &usize {}
+
+pub trait ScalarSub<Rhs>: Sub<Rhs> {}
+
+impl ScalarSub<&f64> for &f64 {}
+impl ScalarSub<&f32> for &f32 {}
+impl ScalarSub<&i8> for &i8 {}
+impl ScalarSub<&i16> for &i16 {}
+impl ScalarSub<&i32> for &i32 {}
+impl ScalarSub<&i64> for &i64 {}
+impl ScalarSub<&i128> for &i128 {}
+impl ScalarSub<&isize> for &isize {}
+impl ScalarSub<&u8> for &u8 {}
+impl ScalarSub<&u16> for &u16 {}
+impl ScalarSub<&u32> for &u32 {}
+impl ScalarSub<&u64> for &u64 {}
+impl ScalarSub<&u128> for &u128 {}
+impl ScalarSub<&usize> for &usize {}
 
 #[cfg(test)]
 mod tests {

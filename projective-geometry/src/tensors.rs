@@ -1,5 +1,5 @@
 use crate::array_utils::ArrayExt;
-use crate::scalar_traits::{Descale, ScalarAdd, Zero};
+use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use std::array::from_fn;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -140,7 +140,7 @@ impl<T, S0: Space<N0>, const N0: usize> Tensor1<T, S0, N0> {
     ) -> ResultT
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s0);
         self.raw
@@ -164,7 +164,7 @@ impl<T, S0: Space<N0>, const N0: usize> Tensor1<T, S0, N0> {
     ) -> Tensor1<ResultT, RhsS1, RHS_N1>
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s0);
         Tensor1::from_raw(
@@ -193,7 +193,7 @@ impl<T, S0: Space<N0>, const N0: usize> Tensor1<T, S0, N0> {
     ) -> Tensor2<ResultT, RhsS1, RhsS2, RHS_N1, RHS_N2>
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s0);
         Tensor2::from_raw(
@@ -289,7 +289,7 @@ impl<T, S0: Space<N0>, S1: Space<N1>, const N0: usize, const N1: usize> Tensor2<
     ) -> Tensor1<ResultT, S0, N0>
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s1);
         Tensor1::from_raw(
@@ -317,7 +317,7 @@ impl<T, S0: Space<N0>, S1: Space<N1>, const N0: usize, const N1: usize> Tensor2<
     ) -> Tensor2<ResultT, S0, RhsS1, N0, RHS_N1>
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s1);
         Tensor2::from_raw(
@@ -348,7 +348,7 @@ impl<T, S0: Space<N0>, S1: Space<N1>, const N0: usize, const N1: usize> Tensor2<
     ) -> Tensor3<ResultT, S0, RhsS1, RhsS2, N0, RHS_N1, RHS_N2>
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s1);
         Tensor3::from_raw(
@@ -531,7 +531,7 @@ impl<
     ) -> Tensor3<ResultT, S0, S1, RhsS1, N0, N1, RHS_N1>
     where
         &'r RhsT: Mul<&'l T>,
-        for<'a, 'b> &'a ResultT: ScalarAdd<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
+        for<'a, 'b> &'a ResultT: Add<&'b <&'r RhsT as Mul<&'l T>>::Output, Output = ResultT>,
     {
         rhs.s0.check_duality(&self.s2);
         Tensor3::from_raw(
@@ -622,7 +622,7 @@ where
 impl<'l, 'r, LhsT, RhsT, S0: Space<N0>, const N0: usize> Sub<&'r Tensor1<RhsT, S0, N0>>
     for &'l Tensor1<LhsT, S0, N0>
 where
-    &'l LhsT: Sub<&'r RhsT>,
+    &'l LhsT: ScalarSub<&'r RhsT>,
 {
     type Output = Tensor1<<&'l LhsT as Sub<&'r RhsT>>::Output, S0, N0>;
 
@@ -639,7 +639,7 @@ where
 impl<'l, 'r, LhsT, RhsT, S0: Space<N0>, S1: Space<N1>, const N0: usize, const N1: usize>
     Sub<&'r Tensor2<RhsT, S0, S1, N0, N1>> for &'l Tensor2<LhsT, S0, S1, N0, N1>
 where
-    &'l LhsT: Sub<&'r RhsT>,
+    &'l LhsT: ScalarSub<&'r RhsT>,
 {
     type Output = Tensor2<<&'l LhsT as Sub<&'r RhsT>>::Output, S0, S1, N0, N1>;
 
@@ -669,7 +669,7 @@ impl<
         const N2: usize,
     > Sub<&'r Tensor3<RhsT, S0, S1, S2, N0, N1, N2>> for &'l Tensor3<LhsT, S0, S1, S2, N0, N1, N2>
 where
-    &'l LhsT: Sub<&'r RhsT>,
+    &'l LhsT: ScalarSub<&'r RhsT>,
 {
     type Output = Tensor3<<&'l LhsT as Sub<&'r RhsT>>::Output, S0, S1, S2, N0, N1, N2>;
 
@@ -691,7 +691,7 @@ where
 
 impl<'a, T, S0: Space<N0>, const N0: usize> Neg for &'a Tensor1<T, S0, N0>
 where
-    &'a T: Neg,
+    &'a T: ScalarNeg,
 {
     type Output = Tensor1<<&'a T as Neg>::Output, S0, N0>;
 
@@ -704,7 +704,7 @@ where
 impl<'a, T, S0: Space<N0>, S1: Space<N1>, const N0: usize, const N1: usize> Neg
     for &'a Tensor2<T, S0, S1, N0, N1>
 where
-    &'a T: Neg,
+    &'a T: ScalarNeg,
 {
     type Output = Tensor2<<&'a T as Neg>::Output, S0, S1, N0, N1>;
 
@@ -729,7 +729,7 @@ impl<
         const N2: usize,
     > Neg for &'a Tensor3<T, S0, S1, S2, N0, N1, N2>
 where
-    &'a T: Neg,
+    &'a T: ScalarNeg,
 {
     type Output = Tensor3<<&'a T as Neg>::Output, S0, S1, S2, N0, N1, N2>;
 
@@ -812,14 +812,14 @@ impl<'a, T: 'a, const N0: usize, const N1: usize, const N2: usize> Array3Ext<'a,
 trait Arrays1IterExt<T, const N0: usize> {
     fn arrays1_sum<ResultT: Zero>(self) -> [ResultT; N0]
     where
-        for<'l, 'r> &'l ResultT: ScalarAdd<&'r T, Output = ResultT>;
+        for<'l, 'r> &'l ResultT: Add<&'r T, Output = ResultT>;
 }
 
 impl<IterT: Iterator<Item = [T; N0]>, T, const N0: usize> Arrays1IterExt<T, N0> for IterT {
     #[inline]
     fn arrays1_sum<ResultT: Zero>(self) -> [ResultT; N0]
     where
-        for<'l, 'r> &'l ResultT: ScalarAdd<&'r T, Output = ResultT>,
+        for<'l, 'r> &'l ResultT: Add<&'r T, Output = ResultT>,
     {
         self.fold(from_fn(|_| ResultT::zero()), |sv, xv| {
             sv.ref_map_with(&xv, |s, x| s + x)
@@ -830,7 +830,7 @@ impl<IterT: Iterator<Item = [T; N0]>, T, const N0: usize> Arrays1IterExt<T, N0> 
 trait Arrays2IterExt<T, const N0: usize, const N1: usize> {
     fn arrays2_sum<ResultT: Zero>(self) -> [[ResultT; N1]; N0]
     where
-        for<'l, 'r> &'l ResultT: ScalarAdd<&'r T, Output = ResultT>;
+        for<'l, 'r> &'l ResultT: Add<&'r T, Output = ResultT>;
 }
 
 impl<IterT: Iterator<Item = [[T; N1]; N0]>, T, const N0: usize, const N1: usize>
@@ -839,7 +839,7 @@ impl<IterT: Iterator<Item = [[T; N1]; N0]>, T, const N0: usize, const N1: usize>
     #[inline]
     fn arrays2_sum<ResultT: Zero>(self) -> [[ResultT; N1]; N0]
     where
-        for<'l, 'r> &'l ResultT: ScalarAdd<&'r T, Output = ResultT>,
+        for<'l, 'r> &'l ResultT: Add<&'r T, Output = ResultT>,
     {
         self.fold(from_fn(|_| from_fn(|_| ResultT::zero())), |svv, xvv| {
             svv.ref_map_with(&xvv, |sv, xv| sv.ref_map_with(&xv, |s, x| s + x))
@@ -850,7 +850,7 @@ impl<IterT: Iterator<Item = [[T; N1]; N0]>, T, const N0: usize, const N1: usize>
 trait Arrays3IterExt<T, const N0: usize, const N1: usize, const N2: usize> {
     fn arrays3_sum<ResultT: Zero>(self) -> [[[ResultT; N2]; N1]; N0]
     where
-        for<'l, 'r> &'l ResultT: ScalarAdd<&'r T, Output = ResultT>;
+        for<'l, 'r> &'l ResultT: Add<&'r T, Output = ResultT>;
 }
 
 impl<
@@ -864,7 +864,7 @@ impl<
     #[inline]
     fn arrays3_sum<ResultT: Zero>(self) -> [[[ResultT; N2]; N1]; N0]
     where
-        for<'l, 'r> &'l ResultT: ScalarAdd<&'r T, Output = ResultT>,
+        for<'l, 'r> &'l ResultT: Add<&'r T, Output = ResultT>,
     {
         self.fold(
             from_fn(|_| from_fn(|_| from_fn(|_| ResultT::zero()))),
