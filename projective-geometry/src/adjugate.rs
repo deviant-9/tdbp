@@ -57,13 +57,6 @@ adjugate_impl!(6);
 adjugate_impl!(7);
 adjugate_impl!(8);
 adjugate_impl!(9);
-adjugate_impl!(10);
-adjugate_impl!(11);
-adjugate_impl!(12);
-adjugate_impl!(13);
-adjugate_impl!(14);
-adjugate_impl!(15);
-adjugate_impl!(16);
 
 trait DetExt {
     type Output;
@@ -123,13 +116,6 @@ det_ext_impl!(5);
 det_ext_impl!(6);
 det_ext_impl!(7);
 det_ext_impl!(8);
-det_ext_impl!(9);
-det_ext_impl!(10);
-det_ext_impl!(11);
-det_ext_impl!(12);
-det_ext_impl!(13);
-det_ext_impl!(14);
-det_ext_impl!(15);
 
 trait SubMatrixExt {
     type Output;
@@ -164,13 +150,6 @@ sub_matrix_ext_impl!(6, 6);
 sub_matrix_ext_impl!(7, 7);
 sub_matrix_ext_impl!(8, 8);
 sub_matrix_ext_impl!(9, 9);
-sub_matrix_ext_impl!(10, 10);
-sub_matrix_ext_impl!(11, 11);
-sub_matrix_ext_impl!(12, 12);
-sub_matrix_ext_impl!(13, 13);
-sub_matrix_ext_impl!(14, 14);
-sub_matrix_ext_impl!(15, 15);
-sub_matrix_ext_impl!(16, 16);
 
 #[cfg(test)]
 mod tests {
