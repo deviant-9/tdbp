@@ -110,6 +110,27 @@ impl ScalarSub<&u64> for &u64 {}
 impl ScalarSub<&u128> for &u128 {}
 impl ScalarSub<&usize> for &usize {}
 
+pub trait Sqrt {
+    type Output;
+    fn sqrt(&self) -> Self::Output;
+}
+
+impl Sqrt for f64 {
+    type Output = f64;
+
+    fn sqrt(&self) -> Self::Output {
+        f64::sqrt(*self)
+    }
+}
+
+impl Sqrt for f32 {
+    type Output = f32;
+
+    fn sqrt(&self) -> Self::Output {
+        f32::sqrt(*self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
