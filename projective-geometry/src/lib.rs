@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 #![feature(array_methods)]
-#![feature(return_position_impl_trait_in_trait)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(slice_flatten)]
 #![feature(slice_as_chunks)]
