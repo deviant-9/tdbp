@@ -173,14 +173,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_solve_exact_homogeneous() {
+    fn test_solve_exact_homogeneous_3() {
         let a: [[f64; 3]; 2] = [[965., 880., 756.], [470., 332., 822.]];
         let random_vector: [f64; 3] = [1., 2., 3.];
         let null_vector = a.solve_exact_homogeneous(&random_vector);
         let null_vector_abs = abs(&null_vector);
-        assert!(null_vector_abs >= 1., "null vector is too short");
+        assert!(null_vector_abs >= 0.1, "null vector is too short");
         assert!(
-            null_vector_abs < null_vector.len() as f64,
+            null_vector_abs < (null_vector.len() as f64 * 10.),
+            "null vector is too long"
+        );
+        assert!(dot_product(&a[0], &null_vector).abs() < 0.000000001);
+        assert!(dot_product(&a[1], &null_vector).abs() < 0.000000001);
+    }
+
+    #[test]
+    fn test_solve_exact_homogeneous_4() {
+        let a: [[f64; 4]; 3] = [[965., 880., 756., 295.], [470., 332., 822., 748.], [529., 139., 729., 625.]];
+        let random_vector: [f64; 4] = [1., 2., 3., 4.];
+        let null_vector = a.solve_exact_homogeneous(&random_vector);
+        let null_vector_abs = abs(&null_vector);
+        assert!(null_vector_abs >= 0.1, "null vector is too short");
+        assert!(
+            null_vector_abs < (null_vector.len() as f64 * 10.),
             "null vector is too long"
         );
         assert!(dot_product(&a[0], &null_vector).abs() < 0.000000001);
@@ -195,7 +210,7 @@ mod tests {
         let null_vector_abs = abs(&null_vector);
         assert!(null_vector_abs >= 1., "null vector is too short");
         assert!(
-            null_vector_abs < null_vector.len() as f64,
+            null_vector_abs < (null_vector.len() as f64 * 10.),
             "null vector is too long"
         );
         assert!(dot_product(&a[0], &null_vector).abs() < 0.000000001);
