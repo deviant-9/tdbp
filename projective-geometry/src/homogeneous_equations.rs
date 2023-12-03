@@ -10,7 +10,7 @@ pub trait SolveExactHomogeneousExt<RandomVector> {
     fn solve_exact_homogeneous(&self, random_vector: &RandomVector) -> Self::Output;
 }
 
-macro_rules! solve_exact_homogeneous_impl {
+macro_rules! solve_exact_homogeneous_impl_with_sqrt {
     ($n:expr) => {
         impl<T: Clone + Zero + Descale + Sqrt<Output = T>> SolveExactHomogeneousExt<[T; $n]>
             for [[T; $n]; $n - 1]
@@ -41,6 +41,53 @@ macro_rules! solve_exact_homogeneous_impl {
                 descale(&random_vector)
             }
         }
+    };
+}
+
+macro_rules! solve_exact_homogeneous_impl_without_sqrt {
+    ($n:expr) => {
+        impl<T: Clone + Zero + Descale> SolveExactHomogeneousExt<[T; $n]> for [[T; $n]; $n - 1]
+        where
+            for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+        {
+            type Output = [T; $n];
+
+            fn solve_exact_homogeneous(&self, random_vector: &[T; $n]) -> Self::Output {
+                let mut a = self.clone();
+                let mut abs_sqrs: [Option<T>; $n - 1] = from_fn(|_| None);
+                for i in 0..a.len() {
+                    let (a_i, a_prev_all) = a[0..=i].split_last_mut().unwrap();
+                    *a_i = descale(a_i);
+                    for prev_i in 0..a_prev_all.len() {
+                        add_to_orthogonality_special(
+                            a_i,
+                            &a_prev_all[prev_i],
+                            (&abs_sqrs[prev_i]).as_ref().unwrap(),
+                        );
+                        *a_i = descale(a_i);
+                    }
+                    abs_sqrs[i] = Some(dot_product(a_i, a_i));
+                }
+                let mut random_vector = random_vector.clone();
+                random_vector = descale(&random_vector);
+                for i in 0..a.len() {
+                    add_to_orthogonality_special(
+                        &mut random_vector,
+                        &a[i],
+                        (&abs_sqrs[i]).as_ref().unwrap(),
+                    );
+                }
+                descale(&random_vector)
+            }
+        }
+    };
+}
+
+macro_rules! solve_exact_homogeneous_impl {
+    ($n:expr) => {
+        solve_exact_homogeneous_impl_without_sqrt!($n);
     };
 }
 
@@ -76,6 +123,22 @@ where
     let proj = dot_product(lhs, normalized_rhs);
     for (l, r) in lhs.iter_mut().zip(normalized_rhs.iter()) {
         *l = &*l - &(&proj * r);
+    }
+}
+
+#[inline]
+fn add_to_orthogonality_special<T: Zero, const N: usize>(
+    lhs: &mut [T; N],
+    rhs: &[T; N],
+    rhs_abs_sqr: &T,
+) where
+    for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
+    let proj = dot_product(lhs, rhs);
+    for (l, r) in lhs.iter_mut().zip(rhs.iter()) {
+        *l = &(&*l * &rhs_abs_sqr) - &(&proj * r);
     }
 }
 
