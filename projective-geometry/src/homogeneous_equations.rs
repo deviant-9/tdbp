@@ -252,7 +252,11 @@ mod tests {
 
     #[test]
     fn test_solve_exact_homogeneous_4() {
-        let a: [[f64; 4]; 3] = [[965., 880., 756., 295.], [470., 332., 822., 748.], [529., 139., 729., 625.]];
+        let a: [[f64; 4]; 3] = [
+            [965., 880., 756., 295.],
+            [470., 332., 822., 748.],
+            [529., 139., 729., 625.],
+        ];
         let random_vector: [f64; 4] = [1., 2., 3., 4.];
         let null_vector = a.solve_exact_homogeneous(&random_vector);
         let null_vector_abs = abs(&null_vector);
