@@ -1,30 +1,36 @@
+use crate::scalar_traits::{Descale, One, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor1, Tensor2};
-
-pub type T = f64;
-
-#[derive(Debug)]
-pub struct Point1D<S: Space<2>>(Tensor1<T, S, 2>);
-#[derive(Debug)]
-pub struct Point2D<S: Space<3>>(Tensor1<T, S, 3>);
-#[derive(Debug)]
-pub struct Point3D<S: Space<4>>(Tensor1<T, S, 4>);
+use std::ops::{Div, Mul};
 
 #[derive(Debug)]
-pub struct Line2D<S: Space<3>>(Tensor1<T, CoSpace<3, S>, 3>);
+pub struct Point1D<T, S: Space<2>>(Tensor1<T, S, 2>);
 #[derive(Debug)]
-pub struct Line3D<S: Space<4>>(Tensor2<T, S, S, 4, 4>);
+pub struct Point2D<T, S: Space<3>>(Tensor1<T, S, 3>);
+#[derive(Debug)]
+pub struct Point3D<T, S: Space<4>>(Tensor1<T, S, 4>);
 
 #[derive(Debug)]
-pub struct Plane3D<S: Space<4>>(Tensor1<T, CoSpace<4, S>, 4>);
+pub struct Line2D<T, S: Space<3>>(Tensor1<T, CoSpace<3, S>, 3>);
+#[derive(Debug)]
+pub struct Line3D<T, S: Space<4>>(Tensor2<T, S, S, 4, 4>);
 
-impl<S: Space<2>> Point1D<S> {
+#[derive(Debug)]
+pub struct Plane3D<T, S: Space<4>>(Tensor1<T, CoSpace<4, S>, 4>);
+
+impl<T: Clone + Descale + Zero, S: Space<2>> Point1D<T, S>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
     #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 2>) -> Point1D<S> {
+    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 2>) -> Point1D<T, S> {
         Point1D(tensor.descale())
     }
 
     #[inline]
-    pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<2, S>, 2>) -> Point1D<S> {
+    pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<2, S>, 2>) -> Point1D<T, S> {
         Point1D::from_contra_tensor(&tensor.contra_levi_contract_0())
     }
 
@@ -39,26 +45,40 @@ impl<S: Space<2>> Point1D<S> {
     }
 
     #[inline]
-    pub fn from_normal_coords(coords: &[T; 1], s: S) -> Point1D<S> {
-        Point1D::from_contra_tensor(&Tensor1::from_raw(s, [coords[0].clone(), 1.]))
+    pub fn from_normal_coords(coords: &[T; 1], s: S) -> Point1D<T, S>
+    where
+        T: One,
+    {
+        Point1D::from_contra_tensor(&Tensor1::from_raw(s, [coords[0].clone(), T::one()]))
     }
 
     #[inline]
-    pub fn normal_coords(&self) -> [T; 1] {
+    pub fn normal_coords<U>(&self) -> [U; 1]
+    where
+        for<'a, 'b> &'a T: Div<&'b T, Output = U>,
+    {
         let scale = self.0.raw.last().unwrap();
         [&self.0.raw[0] / scale]
     }
 }
 
-impl<S: Space<3>> Point2D<S> {
+impl<T: Clone + Descale + Zero, S: Space<3>> Point2D<T, S>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
     #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 3>) -> Point2D<S> {
+    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 3>) -> Point2D<T, S> {
         Point2D(tensor.descale())
     }
 
     /// tensor must be antisymmetric
     #[inline]
-    pub fn from_co_tensor(tensor: &Tensor2<T, CoSpace<3, S>, CoSpace<3, S>, 3, 3>) -> Point2D<S> {
+    pub fn from_co_tensor(
+        tensor: &Tensor2<T, CoSpace<3, S>, CoSpace<3, S>, 3, 3>,
+    ) -> Point2D<T, S> {
         assert_eq!(tensor.s0.0, tensor.s1.0);
         Point2D::from_contra_tensor(&tensor.contra_levi_contract_01())
     }
@@ -74,21 +94,27 @@ impl<S: Space<3>> Point2D<S> {
     }
 
     #[inline]
-    pub fn from_normal_coords(coords: &[T; 2], s: S) -> Self {
+    pub fn from_normal_coords(coords: &[T; 2], s: S) -> Self
+    where
+        T: One,
+    {
         Point2D::from_contra_tensor(&Tensor1::from_raw(
             s,
-            [coords[0].clone(), coords[1].clone(), 1.],
+            [coords[0].clone(), coords[1].clone(), T::one()],
         ))
     }
 
     #[inline]
-    pub fn normal_coords(&self) -> [T; 2] {
+    pub fn normal_coords<U>(&self) -> [U; 2]
+    where
+        for<'a, 'b> &'a T: Div<&'b T, Output = U>,
+    {
         let scale = self.0.raw.last().unwrap();
         [&self.0.raw[0] / scale, &self.0.raw[1] / scale]
     }
 
     #[inline]
-    pub fn some_outer_line(&self) -> Line2D<S> {
+    pub fn some_outer_line(&self) -> Line2D<T, S> {
         Line2D::from_co_tensor(&Tensor1::from_raw(
             CoSpace(self.0.s0.clone()),
             self.0.raw.clone(),
@@ -96,15 +122,21 @@ impl<S: Space<3>> Point2D<S> {
     }
 
     #[inline]
-    pub fn line_to_point(&self, point: &Point2D<S>) -> Line2D<S> {
+    pub fn line_to_point(&self, point: &Point2D<T, S>) -> Line2D<T, S> {
         assert_eq!(self.0.s0, point.0.s0);
         Line2D::from_contra_tensor(&self.0.mul_tensor1(&point.0))
     }
 }
 
-impl<S: Space<4>> Point3D<S> {
+impl<T: Clone + Descale + Zero, S: Space<4>> Point3D<T, S>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
     #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 4>) -> Point3D<S> {
+    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 4>) -> Point3D<T, S> {
         Point3D(tensor.descale())
     }
 
@@ -114,15 +146,26 @@ impl<S: Space<4>> Point3D<S> {
     }
 
     #[inline]
-    pub fn from_normal_coords(coords: &[T; 3], s: S) -> Self {
+    pub fn from_normal_coords(coords: &[T; 3], s: S) -> Self
+    where
+        T: One,
+    {
         Point3D::from_contra_tensor(&Tensor1::from_raw(
             s,
-            [coords[0].clone(), coords[1].clone(), coords[2].clone(), 1.],
+            [
+                coords[0].clone(),
+                coords[1].clone(),
+                coords[2].clone(),
+                T::one(),
+            ],
         ))
     }
 
     #[inline]
-    pub fn normal_coords(&self) -> [T; 3] {
+    pub fn normal_coords<U>(&self) -> [U; 3]
+    where
+        for<'a, 'b> &'a T: Div<&'b T, Output = U>,
+    {
         let scale = self.0.raw.last().unwrap();
         [
             &self.0.raw[0] / scale,
@@ -132,7 +175,7 @@ impl<S: Space<4>> Point3D<S> {
     }
 
     #[inline]
-    pub fn some_outer_plane(&self) -> Plane3D<S> {
+    pub fn some_outer_plane(&self) -> Plane3D<T, S> {
         Plane3D::from_co_tensor(&Tensor1::from_raw(
             CoSpace(self.0.s0.clone()),
             self.0.raw.clone(),
@@ -140,14 +183,14 @@ impl<S: Space<4>> Point3D<S> {
     }
 
     #[inline]
-    pub fn line_to_point(&self, point: &Point3D<S>) -> Line3D<S> {
+    pub fn line_to_point(&self, point: &Point3D<T, S>) -> Line3D<T, S> {
         assert_eq!(self.0.s0, point.0.s0);
         let mul = self.0.mul_tensor1(&point.0);
         Line3D::from_contra_tensor(&(&mul - &mul.swap10()))
     }
 
     #[inline]
-    pub fn plane_to_points(&self, point0: &Point3D<S>, point1: &Point3D<S>) -> Plane3D<S> {
+    pub fn plane_to_points(&self, point0: &Point3D<T, S>, point1: &Point3D<T, S>) -> Plane3D<T, S> {
         assert_eq!(self.0.s0, point0.0.s0);
         assert_eq!(self.0.s0, point1.0.s0);
         Plane3D::from_co_tensor(
@@ -160,22 +203,28 @@ impl<S: Space<4>> Point3D<S> {
     }
 
     #[inline]
-    pub fn plane_to_line(&self, line: &Line3D<S>) -> Plane3D<S> {
+    pub fn plane_to_line(&self, line: &Line3D<T, S>) -> Plane3D<T, S> {
         assert_eq!(self.0.s0, line.0.s0);
         Plane3D::from_co_tensor(&line.0.co_levi_contract_01().contract_tensor1_10(&self.0))
     }
 }
 
-impl<S: Space<3>> Line2D<S> {
+impl<T: Clone + Descale + Zero, S: Space<3>> Line2D<T, S>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
     /// tensor must be antisymmetric
     #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor2<T, S, S, 3, 3>) -> Line2D<S> {
+    pub fn from_contra_tensor(tensor: &Tensor2<T, S, S, 3, 3>) -> Line2D<T, S> {
         assert_eq!(tensor.s0, tensor.s1);
         Line2D::from_co_tensor(&tensor.co_levi_contract_01())
     }
 
     #[inline]
-    pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<3, S>, 3>) -> Line2D<S> {
+    pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<3, S>, 3>) -> Line2D<T, S> {
         Line2D(tensor.descale())
     }
 
@@ -190,28 +239,34 @@ impl<S: Space<3>> Line2D<S> {
     }
 
     #[inline]
-    pub fn some_outer_point(&self) -> Point2D<S> {
+    pub fn some_outer_point(&self) -> Point2D<T, S> {
         Point2D::from_contra_tensor(&Tensor1::from_raw(self.0.s0.0.clone(), self.0.raw.clone()))
     }
 
     #[inline]
-    pub fn cross_with_line(&self, line: &Line2D<S>) -> Point2D<S> {
+    pub fn cross_with_line(&self, line: &Line2D<T, S>) -> Point2D<T, S> {
         assert_eq!(self.0.s0, line.0.s0);
         Point2D::from_contra_tensor(&self.0.mul_tensor1(&line.0).contra_levi_contract_01())
     }
 }
 
-impl<S: Space<4>> Line3D<S> {
+impl<T: Clone + Descale + Zero, S: Space<4>> Line3D<T, S>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
     /// tensor must be antisymmetric
     #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor2<T, S, S, 4, 4>) -> Line3D<S> {
+    pub fn from_contra_tensor(tensor: &Tensor2<T, S, S, 4, 4>) -> Line3D<T, S> {
         assert_eq!(tensor.s0, tensor.s1);
         Line3D(tensor.descale())
     }
 
     /// tensor must be antisymmetric
     #[inline]
-    pub fn from_co_tensor(tensor: &Tensor2<T, CoSpace<4, S>, CoSpace<4, S>, 4, 4>) -> Line3D<S> {
+    pub fn from_co_tensor(tensor: &Tensor2<T, CoSpace<4, S>, CoSpace<4, S>, 4, 4>) -> Line3D<T, S> {
         assert_eq!(tensor.s0.0, tensor.s1.0);
         Line3D::from_contra_tensor(&tensor.contra_levi_contract_01())
     }
@@ -227,21 +282,27 @@ impl<S: Space<4>> Line3D<S> {
     }
 
     #[inline]
-    pub fn plane_to_point(&self, point: &Point3D<S>) -> Plane3D<S> {
+    pub fn plane_to_point(&self, point: &Point3D<T, S>) -> Plane3D<T, S> {
         assert_eq!(self.0.s0, point.0.s0);
         Plane3D::from_co_tensor(&self.0.co_levi_contract_01().contract_tensor1_10(&point.0))
     }
 
     #[inline]
-    pub fn cross_with_plane(&self, plane: &Plane3D<S>) -> Point3D<S> {
+    pub fn cross_with_plane(&self, plane: &Plane3D<T, S>) -> Point3D<T, S> {
         assert_eq!(self.0.s0, plane.0.s0.0);
         Point3D::from_contra_tensor(&self.0.contract_tensor1_10(&plane.0))
     }
 }
 
-impl<S: Space<4>> Plane3D<S> {
+impl<T: Clone + Descale + Zero, S: Space<4>> Plane3D<T, S>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
     #[inline]
-    pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<4, S>, 4>) -> Plane3D<S> {
+    pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<4, S>, 4>) -> Plane3D<T, S> {
         Plane3D(tensor.descale())
     }
 
@@ -251,24 +312,28 @@ impl<S: Space<4>> Plane3D<S> {
     }
 
     #[inline]
-    pub fn some_outer_point(&self) -> Point3D<S> {
+    pub fn some_outer_point(&self) -> Point3D<T, S> {
         Point3D::from_contra_tensor(&Tensor1::from_raw(self.0.s0.0.clone(), self.0.raw.clone()))
     }
 
     #[inline]
-    pub fn cross_with_line(&self, line: &Line3D<S>) -> Point3D<S> {
+    pub fn cross_with_line(&self, line: &Line3D<T, S>) -> Point3D<T, S> {
         assert_eq!(self.0.s0.0, line.0.s0);
         Point3D::from_contra_tensor(&line.0.contract_tensor1_10(&self.0))
     }
 
     #[inline]
-    pub fn cross_with_plane(&self, plane: &Plane3D<S>) -> Line3D<S> {
+    pub fn cross_with_plane(&self, plane: &Plane3D<T, S>) -> Line3D<T, S> {
         assert_eq!(self.0.s0.0, plane.0.s0.0);
         Line3D::from_co_tensor(&self.0.mul_tensor1(&plane.0))
     }
 
     #[inline]
-    pub fn cross_with_planes(&self, plane0: &Plane3D<S>, plane1: &Plane3D<S>) -> Point3D<S> {
+    pub fn cross_with_planes(
+        &self,
+        plane0: &Plane3D<T, S>,
+        plane1: &Plane3D<T, S>,
+    ) -> Point3D<T, S> {
         assert_eq!(self.0.s0.0, plane0.0.s0.0);
         assert_eq!(self.0.s0.0, plane1.0.s0.0);
         Point3D::from_contra_tensor(
@@ -283,6 +348,8 @@ impl<S: Space<4>> Plane3D<S> {
 
 #[cfg(test)]
 mod tests {
+    type T = f64;
+
     use super::*;
     use crate::scalar_traits::Zero;
 
@@ -371,7 +438,7 @@ mod tests {
         ));
     }
 
-    fn line2_has_point<S: Space<3>>(line: &Line2D<S>, point: &Point2D<S>) -> bool {
+    fn line2_has_point<S: Space<3>>(line: &Line2D<T, S>, point: &Point2D<T, S>) -> bool {
         line.co_tensor().contract_tensor1_00(&point.contra_tensor()) == 0.
     }
 
@@ -483,7 +550,7 @@ mod tests {
         ));
     }
 
-    fn line3_has_point<S: Space<4>>(line: &Line3D<S>, point: &Point3D<S>) -> bool {
+    fn line3_has_point<S: Space<4>>(line: &Line3D<T, S>, point: &Point3D<T, S>) -> bool {
         is_zero(
             &line
                 .co_tensor()
@@ -492,7 +559,7 @@ mod tests {
         )
     }
 
-    fn plane3_has_point<S: Space<4>>(plane: &Plane3D<S>, point: &Point3D<S>) -> bool {
+    fn plane3_has_point<S: Space<4>>(plane: &Plane3D<T, S>, point: &Point3D<T, S>) -> bool {
         plane
             .co_tensor()
             .contract_tensor1_00(&point.contra_tensor())

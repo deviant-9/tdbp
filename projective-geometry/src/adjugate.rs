@@ -154,8 +154,9 @@ sub_matrix_ext_impl!(9, 9);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::projective_primitives::T;
     use crate::scalar_traits::Zero;
+
+    type T = f64;
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct S0_2;

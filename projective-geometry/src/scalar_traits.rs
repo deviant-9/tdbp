@@ -33,6 +33,39 @@ macro_rules! integer_zero {
 
 integer_zero! { i8 i16 i32 i64 i128 isize u8 u16 u32 u64 usize }
 
+pub trait One {
+    fn one() -> Self;
+}
+
+impl One for f64 {
+    #[inline]
+    fn one() -> Self {
+        1.
+    }
+}
+
+impl One for f32 {
+    #[inline]
+    fn one() -> Self {
+        1.
+    }
+}
+
+macro_rules! integer_one {
+    ($($type:ident)*) => {
+        $(
+            impl One for $type {
+                #[inline]
+                fn one() -> Self {
+                    1
+                }
+            }
+        )*
+    };
+}
+
+integer_one! { i8 i16 i32 i64 i128 isize u8 u16 u32 u64 usize }
+
 pub trait Descale {
     type Factor;
 
