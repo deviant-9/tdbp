@@ -1,7 +1,7 @@
 use crate::array_utils::ArrayExt;
 use crate::camera::Camera;
 use crate::homogeneous_equations::{SolveExactHomogeneousExt, SolveHomogeneousExt};
-use crate::projective_primitives::{Line2D, Line3D, Plane3D, Point1D, Point2D, Point3D};
+use crate::projective_primitives::{Line2D, Line3D, Plane3D, Point};
 use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
 use std::array::from_fn;
@@ -28,6 +28,11 @@ where
     pub fn tensor(&self) -> Tensor2<T, SOut, CoSpace<N, SIn>, N, N> {
         self.0.clone()
     }
+
+    #[inline]
+    pub fn transfer_point(&self, point: &Point<T, SIn, N>) -> Point<T, SOut, N> {
+        Point::from_contra_tensor(&self.0.contract_tensor1_10(&point.contra_tensor()))
+    }
 }
 
 impl<T: Clone + Descale + Zero, SIn: Space<2>, SOut: Space<2>> H<T, SIn, SOut, 2>
@@ -41,11 +46,6 @@ where
     pub fn inverse(&self) -> H<T, SOut, SIn, 2> {
         H::from_tensor(&self.0.adjugate())
     }
-
-    #[inline]
-    pub fn transfer_point(&self, point: &Point1D<T, SIn>) -> Point1D<T, SOut> {
-        Point1D::from_contra_tensor(&self.0.contract_tensor1_10(&point.contra_tensor()))
-    }
 }
 
 impl<T: Clone + Descale + Zero, SIn: Space<3>, SOut: Space<3>> H<T, SIn, SOut, 3>
@@ -58,11 +58,6 @@ where
     #[inline]
     pub fn inverse(&self) -> H<T, SOut, SIn, 3> {
         H::from_tensor(&self.0.adjugate())
-    }
-
-    #[inline]
-    pub fn transfer_point(&self, point: &Point2D<T, SIn>) -> Point2D<T, SOut> {
-        Point2D::from_contra_tensor(&self.0.contract_tensor1_10(&point.contra_tensor()))
     }
 
     #[inline]
@@ -89,11 +84,6 @@ where
     #[inline]
     pub fn inverse(&self) -> H<T, SOut, SIn, 4> {
         H::from_tensor(&self.0.adjugate())
-    }
-
-    #[inline]
-    pub fn transfer_point(&self, point: &Point3D<T, SIn>) -> Point3D<T, SOut> {
-        Point3D::from_contra_tensor(&self.0.contract_tensor1_10(&point.contra_tensor()))
     }
 
     #[inline]
@@ -131,7 +121,7 @@ where
 }
 
 macro_rules! from_exact_points_impl {
-    ($n:expr, $point_type:ident) => {
+    ($n:expr) => {
         impl<T: Clone + Descale + Zero, SIn: Space<$n>, SOut: Space<$n>> H<T, SIn, SOut, $n>
         where
             for<'a> &'a T: ScalarNeg<Output = T>,
@@ -140,7 +130,7 @@ macro_rules! from_exact_points_impl {
             for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
         {
             pub fn from_exact_points(
-                points: &[($point_type<T, SIn>, $point_type<T, SOut>); $n + 1],
+                points: &[(Point<T, SIn, $n>, Point<T, SOut, $n>); $n + 1],
                 random_vector: &[T; $n * $n],
             ) -> Self {
                 let points_a: [[[T; $n * $n]; $n - 1]; $n + 1] =
@@ -173,9 +163,9 @@ macro_rules! from_exact_points_impl {
     };
 }
 
-from_exact_points_impl!(2, Point1D);
-from_exact_points_impl!(3, Point2D);
-from_exact_points_impl!(4, Point3D);
+from_exact_points_impl!(2);
+from_exact_points_impl!(3);
+from_exact_points_impl!(4);
 
 #[derive(Debug)]
 pub enum FromPointsError {
@@ -183,7 +173,7 @@ pub enum FromPointsError {
 }
 
 macro_rules! from_points_impl {
-    ($n:expr, $point_type:ident) => {
+    ($n:expr) => {
         impl<T: Clone + Descale + Zero, SIn: Space<$n>, SOut: Space<$n>> H<T, SIn, SOut, $n>
         where
             for<'a> &'a T: ScalarNeg<Output = T>,
@@ -194,7 +184,7 @@ macro_rules! from_points_impl {
             for<'a, 'b> &'a T: PartialOrd<&'b T>,
         {
             pub fn from_points(
-                points: &[($point_type<T, SIn>, $point_type<T, SOut>)],
+                points: &[(Point<T, SIn, $n>, Point<T, SOut, $n>)],
                 random_vector: &[T; $n * $n],
             ) -> Result<Self, FromPointsError> {
                 if points.len() < $n + 1 {
@@ -233,13 +223,14 @@ macro_rules! from_points_impl {
     };
 }
 
-from_points_impl!(2, Point1D);
-from_points_impl!(3, Point2D);
+from_points_impl!(2);
+from_points_impl!(3);
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::array_utils::ArrayExt;
+    use crate::projective_primitives::{Point1D, Point2D, Point3D};
     use crate::tensors::Space;
 
     type T = f64;

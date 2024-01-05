@@ -3,11 +3,11 @@ use crate::tensors::{CoSpace, Space, Tensor1, Tensor2};
 use std::ops::{Div, Mul};
 
 #[derive(Debug)]
-pub struct Point1D<T, S: Space<2>>(Tensor1<T, S, 2>);
-#[derive(Debug)]
-pub struct Point2D<T, S: Space<3>>(Tensor1<T, S, 3>);
-#[derive(Debug)]
-pub struct Point3D<T, S: Space<4>>(Tensor1<T, S, 4>);
+pub struct Point<T, S: Space<N>, const N: usize>(Tensor1<T, S, N>);
+
+pub type Point1D<T, S> = Point<T, S, 2>;
+pub type Point2D<T, S> = Point<T, S, 3>;
+pub type Point3D<T, S> = Point<T, S, 4>;
 
 #[derive(Debug)]
 pub struct Line2D<T, S: Space<3>>(Tensor1<T, CoSpace<3, S>, 3>);
@@ -17,6 +17,24 @@ pub struct Line3D<T, S: Space<4>>(Tensor2<T, S, S, 4, 4>);
 #[derive(Debug)]
 pub struct Plane3D<T, S: Space<4>>(Tensor1<T, CoSpace<4, S>, 4>);
 
+impl<T: Clone + Descale + Zero, S: Space<N>, const N: usize> Point<T, S, N>
+where
+    for<'a> &'a T: ScalarNeg<Output = T>,
+    for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
+    for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
+    #[inline]
+    pub fn from_contra_tensor(tensor: &Tensor1<T, S, N>) -> Point<T, S, N> {
+        Point(tensor.descale())
+    }
+
+    #[inline]
+    pub fn contra_tensor(&self) -> Tensor1<T, S, N> {
+        self.0.clone()
+    }
+}
+
 impl<T: Clone + Descale + Zero, S: Space<2>> Point1D<T, S>
 where
     for<'a> &'a T: ScalarNeg<Output = T>,
@@ -25,18 +43,8 @@ where
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
 {
     #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 2>) -> Point1D<T, S> {
-        Point1D(tensor.descale())
-    }
-
-    #[inline]
     pub fn from_co_tensor(tensor: &Tensor1<T, CoSpace<2, S>, 2>) -> Point1D<T, S> {
         Point1D::from_contra_tensor(&tensor.contra_levi_contract_0())
-    }
-
-    #[inline]
-    pub fn contra_tensor(&self) -> Tensor1<T, S, 2> {
-        self.0.clone()
     }
 
     #[inline]
@@ -69,11 +77,6 @@ where
     for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
 {
-    #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 3>) -> Point2D<T, S> {
-        Point2D(tensor.descale())
-    }
-
     /// tensor must be antisymmetric
     #[inline]
     pub fn from_co_tensor(
@@ -81,11 +84,6 @@ where
     ) -> Point2D<T, S> {
         assert_eq!(tensor.s0.0, tensor.s1.0);
         Point2D::from_contra_tensor(&tensor.contra_levi_contract_01())
-    }
-
-    #[inline]
-    pub fn contra_tensor(&self) -> Tensor1<T, S, 3> {
-        self.0.clone()
     }
 
     #[inline]
@@ -135,16 +133,6 @@ where
     for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
 {
-    #[inline]
-    pub fn from_contra_tensor(tensor: &Tensor1<T, S, 4>) -> Point3D<T, S> {
-        Point3D(tensor.descale())
-    }
-
-    #[inline]
-    pub fn contra_tensor(&self) -> Tensor1<T, S, 4> {
-        self.0.clone()
-    }
-
     #[inline]
     pub fn from_normal_coords(coords: &[T; 3], s: S) -> Self
     where
