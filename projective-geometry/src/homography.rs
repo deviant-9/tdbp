@@ -1,6 +1,6 @@
 use crate::array_utils::ArrayExt;
 use crate::camera::Camera;
-use crate::homogeneous_equations::{SolveExactHomogeneousExt, SolveHomogeneousExt};
+use crate::homogeneous_equations::{ExactHomogeneousSolver, HomogeneousSolver};
 use crate::projective_primitives::{Line2D, Line3D, Plane3D, Point};
 use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
@@ -120,19 +120,43 @@ where
     }
 }
 
+pub trait HFromExactPointsSolver<T, const N: usize, const POINTS_N: usize> {
+    fn solve<SIn: Space<N>, SOut: Space<N>>(
+        &self,
+        points: &[(Point<T, SIn, N>, Point<T, SOut, N>); POINTS_N],
+    ) -> H<T, SIn, SOut, N>;
+}
+
+pub struct HFromExactPointsSolverImpl<Solver> {
+    equations_solver: Solver,
+}
+
+impl<Solver> HFromExactPointsSolverImpl<Solver> {
+    #[inline]
+    pub fn new<T, const N_SQR: usize, const N_SQR_MINUS_1: usize>(equations_solver: Solver) -> Self
+    where
+        Solver: ExactHomogeneousSolver<T, N_SQR, N_SQR_MINUS_1>,
+    {
+        Self { equations_solver }
+    }
+}
+
 macro_rules! from_exact_points_impl {
     ($n:expr) => {
-        impl<T: Clone + Descale + Zero, SIn: Space<$n>, SOut: Space<$n>> H<T, SIn, SOut, $n>
+        impl<
+                T: Clone + Descale + Zero,
+                Solver: ExactHomogeneousSolver<T, { $n * $n }, { $n * $n - 1 }>,
+            > HFromExactPointsSolver<T, $n, { $n + 1 }> for HFromExactPointsSolverImpl<Solver>
         where
             for<'a> &'a T: ScalarNeg<Output = T>,
             for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
             for<'a, 'b> &'a T: ScalarSub<&'b T, Output = T>,
             for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
         {
-            pub fn from_exact_points(
+            fn solve<SIn: Space<$n>, SOut: Space<$n>>(
+                &self,
                 points: &[(Point<T, SIn, $n>, Point<T, SOut, $n>); $n + 1],
-                random_vector: &[T; $n * $n],
-            ) -> Self {
+            ) -> H<T, SIn, SOut, $n> {
                 let points_a: [[[T; $n * $n]; $n - 1]; $n + 1] =
                     points.ref_map(|(in_point, out_point)| {
                         let in_tensor = in_point.contra_tensor();
@@ -152,7 +176,7 @@ macro_rules! from_exact_points_impl {
                     });
                 let a_slice = points_a.flatten();
                 let a: [[T; $n * $n]; $n * $n - 1] = from_fn(|i| a_slice[i].clone());
-                let h_flat = a.solve_exact_homogeneous(random_vector);
+                let h_flat = self.equations_solver.solve(&a);
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
                 let h: [[T; $n]; $n] = from_fn(|i| h_slice[i].clone());
                 let s_in = points[0].0.contra_tensor().s0.clone();
@@ -172,9 +196,31 @@ pub enum FromPointsError {
     NotEnoughPoints,
 }
 
+pub trait HFromPointsSolver<T, const N: usize> {
+    fn solve<SIn: Space<N>, SOut: Space<N>>(
+        &self,
+        points: &[(Point<T, SIn, N>, Point<T, SOut, N>)],
+    ) -> Result<H<T, SIn, SOut, N>, FromPointsError>;
+}
+
+pub struct HFromPointsSolverImpl<Solver> {
+    equations_solver: Solver,
+}
+
+impl<Solver> HFromPointsSolverImpl<Solver> {
+    #[inline]
+    pub fn new<T, const N_SQR: usize>(equations_solver: Solver) -> Self
+    where
+        Solver: HomogeneousSolver<T, N_SQR>,
+    {
+        Self { equations_solver }
+    }
+}
+
 macro_rules! from_points_impl {
     ($n:expr) => {
-        impl<T: Clone + Descale + Zero, SIn: Space<$n>, SOut: Space<$n>> H<T, SIn, SOut, $n>
+        impl<T: Clone + Descale + Zero, Solver: HomogeneousSolver<T, { $n * $n }>>
+            HFromPointsSolver<T, $n> for HFromPointsSolverImpl<Solver>
         where
             for<'a> &'a T: ScalarNeg<Output = T>,
             for<'a, 'b> &'a T: ScalarAdd<&'b T, Output = T>,
@@ -183,10 +229,10 @@ macro_rules! from_points_impl {
             for<'a, 'b> &'a T: Div<&'b T, Output = T>,
             for<'a, 'b> &'a T: PartialOrd<&'b T>,
         {
-            pub fn from_points(
+            fn solve<SIn: Space<$n>, SOut: Space<$n>>(
+                &self,
                 points: &[(Point<T, SIn, $n>, Point<T, SOut, $n>)],
-                random_vector: &[T; $n * $n],
-            ) -> Result<Self, FromPointsError> {
+            ) -> Result<H<T, SIn, SOut, $n>, FromPointsError> {
                 if points.len() < $n + 1 {
                     return Err(FromPointsError::NotEnoughPoints);
                 }
@@ -209,9 +255,9 @@ macro_rules! from_points_impl {
                         }
                     }
                 }
-                let h_flat = a
-                    .as_slice()
-                    .solve_homogeneous(random_vector)
+                let h_flat = self
+                    .equations_solver
+                    .solve(&a.as_slice())
                     .expect("We already checked points.len()");
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
                 let h: [[T; $n]; $n] = from_fn(|i| h_slice[i].clone());
@@ -230,6 +276,8 @@ from_points_impl!(3);
 mod tests {
     use super::*;
     use crate::array_utils::ArrayExt;
+    use crate::eigen_vectors::{MaxEigenValueVectorSolverImpl, MinEigenValueVectorSolverImpl};
+    use crate::homogeneous_equations::{HomogeneousSolverImpl, NoSqrtExactHomogeneousSolverImpl};
     use crate::projective_primitives::{Point1D, Point2D, Point3D};
     use crate::tensors::Space;
 
@@ -285,7 +333,9 @@ mod tests {
             )
         });
         let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let h = H::<T, H2InS, H2OutS, 2>::from_exact_points(&points, &random_vector);
+        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
+        let solver = HFromExactPointsSolverImpl::new(equations_solver);
+        let h = solver.solve(&points);
         assert_eq!(
             h.transfer_point(&points[0].0)
                 .normal_coords()
@@ -316,7 +366,11 @@ mod tests {
             )
         });
         let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let h = H::<T, H2InS, H2OutS, 2>::from_points(&points, &random_vector).unwrap();
+        let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
+        let min_solver = MinEigenValueVectorSolverImpl::new(max_solver);
+        let equations_solver = HomogeneousSolverImpl::new(min_solver);
+        let h_solver = HFromPointsSolverImpl::new(equations_solver);
+        let h = h_solver.solve::<H2InS, H2OutS>(&points).unwrap();
         assert_eq!(
             h.transfer_point(&points[0].0)
                 .normal_coords()
@@ -352,7 +406,9 @@ mod tests {
             )
         });
         let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let h = H::<T, H3InS, H3OutS, 3>::from_exact_points(&points, &random_vector);
+        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
+        let solver = HFromExactPointsSolverImpl::new(equations_solver);
+        let h = solver.solve(&points);
         assert_eq!(
             h.transfer_point(&points[0].0)
                 .normal_coords()
@@ -394,7 +450,11 @@ mod tests {
             )
         });
         let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let h = H::<T, H3InS, H3OutS, 3>::from_points(&points, &random_vector).unwrap();
+        let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
+        let min_solver = MinEigenValueVectorSolverImpl::new(max_solver);
+        let equations_solver = HomogeneousSolverImpl::new(min_solver);
+        let h_solver = HFromPointsSolverImpl::new(equations_solver);
+        let h = h_solver.solve::<H3InS, H3OutS>(&points).unwrap();
         assert_eq!(
             h.transfer_point(&points[0].0)
                 .normal_coords()
@@ -437,7 +497,9 @@ mod tests {
             )
         });
         let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let h = H::<T, H4InS, H4OutS, 4>::from_exact_points(&points, &random_vector);
+        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
+        let solver = HFromExactPointsSolverImpl::new(equations_solver);
+        let h = solver.solve(&points);
         assert_eq!(
             h.transfer_point(&points[0].0)
                 .normal_coords()

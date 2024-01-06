@@ -1,73 +1,128 @@
+use crate::array_utils::ArrayExt;
 use crate::scalar_traits::{Descale, Zero};
 use crate::tensors::{CoSpace, Space, Tensor1, Tensor2};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-macro_rules! eigen_vector_impl {
+pub trait MaxEigenValueVectorSolver<T, const N: usize> {
+    fn max_eigen_value_vector<S: Space<N>>(
+        &self,
+        tensor: &Tensor2<T, S, CoSpace<N, S>, N, N>,
+    ) -> Tensor1<T, S, N>;
+}
+
+pub struct MaxEigenValueVectorSolverImpl<T, const N: usize> {
+    random_vector: [T; N],
+}
+
+impl<T: Descale, const N: usize> MaxEigenValueVectorSolverImpl<T, N> {
+    #[inline]
+    pub fn new(random_vector: &[T; N]) -> Self {
+        let factor = T::descaling_factor(random_vector.iter());
+        let random_vector = random_vector.ref_map(|x| x.descale(&factor));
+        Self { random_vector }
+    }
+}
+
+impl<T: Clone + Zero + Descale, const N: usize> MaxEigenValueVectorSolver<T, N>
+    for MaxEigenValueVectorSolverImpl<T, N>
+where
+    for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Div<&'b T, Output = T>,
+    for<'a, 'b> &'a T: PartialOrd<&'b T>,
+{
+    fn max_eigen_value_vector<S: Space<N>>(
+        &self,
+        tensor: &Tensor2<T, S, CoSpace<N, S>, N, N>,
+    ) -> Tensor1<T, S, N> {
+        assert_eq!(tensor.s0, tensor.s1.0);
+        let m = tensor.descale();
+        let random_vector = Tensor1::from_raw(tensor.s0.clone(), self.random_vector.clone());
+        let result = m.contract_tensor1_10(&random_vector);
+        let mut ratio = &dot_square(&result) / &dot_square(&random_vector);
+        let mut result = result.descale();
+        loop {
+            let new_result = m.contract_tensor1_10(&result);
+            let new_ratio = &dot_square(&new_result) / &dot_square(&result);
+            result = new_result.descale();
+            if &new_ratio <= &ratio {
+                return result;
+            }
+            ratio = new_ratio;
+        }
+    }
+}
+
+#[inline]
+fn dot_square<T: Clone + Zero, S: Space<N>, const N: usize>(v: &Tensor1<T, S, N>) -> T
+where
+    for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
+    dot_product(&v, &v)
+}
+
+#[inline]
+fn dot_product<T: Clone + Zero, S: Space<N>, const N: usize>(
+    lhs: &Tensor1<T, S, N>,
+    rhs: &Tensor1<T, S, N>,
+) -> T
+where
+    for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
+    Tensor1::from_raw(CoSpace(lhs.s0.clone()), lhs.raw.clone()).contract_tensor1_00(rhs)
+}
+
+pub trait MinEigenValueVectorSolver<T, const N: usize> {
+    fn min_eigen_value_vector<S: Space<N>>(
+        &self,
+        tensor: &Tensor2<T, S, CoSpace<N, S>, N, N>,
+    ) -> Tensor1<T, S, N>;
+}
+
+pub struct MinEigenValueVectorSolverImpl<MaxSolver> {
+    max_solver: MaxSolver,
+}
+
+impl<MaxSolver> MinEigenValueVectorSolverImpl<MaxSolver> {
+    #[inline]
+    pub fn new(max_solver: MaxSolver) -> Self {
+        Self { max_solver }
+    }
+}
+
+macro_rules! min_eigen_value_vector_impl {
     ($n:expr) => {
-        impl<T: Clone + Zero + Descale, S: Space<$n>> Tensor2<T, S, CoSpace<$n, S>, $n, $n>
+        impl<MaxSolver: MaxEigenValueVectorSolver<T, $n>, T: Clone + Descale>
+            MinEigenValueVectorSolver<T, $n> for MinEigenValueVectorSolverImpl<MaxSolver>
         where
+            for<'a> &'a T: Neg<Output = T>,
             for<'a, 'b> &'a T: Add<&'b T, Output = T>,
+            for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
             for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
-            for<'a, 'b> &'a T: Div<&'b T, Output = T>,
-            for<'a, 'b> &'a T: PartialOrd<&'b T>,
         {
-            pub fn max_eigen_value_vector(
+            #[inline]
+            fn min_eigen_value_vector<S: Space<$n>>(
                 &self,
-                random_vector: &Tensor1<T, S, $n>,
+                tensor: &Tensor2<T, S, CoSpace<$n, S>, $n, $n>,
             ) -> Tensor1<T, S, $n> {
-                assert_eq!(self.s0, self.s1.0);
-                let m = self.descale();
-                let random_vector = random_vector.descale();
-                let result = m.contract_tensor1_10(&random_vector);
-                let mut ratio = &Self::dot_square(&result) / &Self::dot_square(&random_vector);
-                let mut result = result.descale();
-                loop {
-                    let new_result = m.contract_tensor1_10(&result);
-                    let new_ratio = &Self::dot_square(&new_result) / &Self::dot_square(&result);
-                    result = new_result.descale();
-                    if &new_ratio <= &ratio {
-                        return result;
-                    }
-                    ratio = new_ratio;
-                }
-            }
-
-            #[inline]
-            fn dot_square(v: &Tensor1<T, S, $n>) -> T {
-                Self::dot_product(&v, &v)
-            }
-
-            #[inline]
-            fn dot_product(lhs: &Tensor1<T, S, $n>, rhs: &Tensor1<T, S, $n>) -> T {
-                Tensor1::from_raw(CoSpace(lhs.s0.clone()), lhs.raw.clone()).contract_tensor1_00(rhs)
-            }
-
-            #[inline]
-            pub fn min_eigen_value_vector(
-                &self,
-                random_vector: &Tensor1<T, S, $n>,
-            ) -> Tensor1<T, S, $n>
-            where
-                for<'a> &'a T: Neg<Output = T>,
-                for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
-            {
-                assert_eq!(self.s0, self.s1.0);
-                self.descale()
-                    .adjugate()
-                    .max_eigen_value_vector(random_vector)
+                assert_eq!(tensor.s0, tensor.s1.0);
+                self.max_solver
+                    .max_eigen_value_vector(&tensor.descale().adjugate())
             }
         }
     };
 }
 
-eigen_vector_impl!(2);
-eigen_vector_impl!(3);
-eigen_vector_impl!(4);
-eigen_vector_impl!(5);
-eigen_vector_impl!(6);
-eigen_vector_impl!(7);
-eigen_vector_impl!(8);
-eigen_vector_impl!(9);
+min_eigen_value_vector_impl!(2);
+min_eigen_value_vector_impl!(3);
+min_eigen_value_vector_impl!(4);
+min_eigen_value_vector_impl!(5);
+min_eigen_value_vector_impl!(6);
+min_eigen_value_vector_impl!(7);
+min_eigen_value_vector_impl!(8);
+min_eigen_value_vector_impl!(9);
 
 #[cfg(test)]
 mod tests {
@@ -79,13 +134,14 @@ mod tests {
 
     #[test]
     fn test_max_eigen_value_vector() {
-        let random_vector = Tensor1::from_raw(S3, [13., 17., -20.]);
         let m = Tensor2::from_raw(
             S3,
             CoSpace(S3),
             [[539., 406., 602.], [406., 863., 949.], [602., 949., 604.]],
         );
-        let eigen_vector = m.max_eigen_value_vector(&random_vector);
+        let random_vector = [13., 17., -20.];
+        let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
+        let eigen_vector = max_solver.max_eigen_value_vector(&m);
         let multiplied = m.contract_tensor1_10(&eigen_vector);
         let angle_cos = angle_cos(&eigen_vector.raw, &multiplied.raw);
         assert!(
@@ -104,13 +160,15 @@ mod tests {
 
     #[test]
     fn test_min_eigen_value_vector() {
-        let random_vector = Tensor1::from_raw(S3, [13., 17., -20.]);
         let m = Tensor2::from_raw(
             S3,
             CoSpace(S3),
             [[539., 406., 602.], [406., 863., 949.], [602., 949., 604.]],
         );
-        let eigen_vector = m.min_eigen_value_vector(&random_vector);
+        let random_vector = [13., 17., -20.];
+        let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
+        let min_solver = MinEigenValueVectorSolverImpl::new(max_solver);
+        let eigen_vector = min_solver.min_eigen_value_vector(&m);
         let eigen_vector_abs = abs(&eigen_vector.raw);
         assert!(eigen_vector_abs >= 1., "eigen vector is too short");
         assert!(
