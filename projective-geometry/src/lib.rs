@@ -10,6 +10,7 @@ pub mod camera;
 pub mod eigen_vectors;
 pub mod homogeneous_equations;
 pub mod homography;
+pub mod homography_from_points;
 pub mod levi_civita;
 pub mod projective_primitives;
 pub mod scalar_traits;
