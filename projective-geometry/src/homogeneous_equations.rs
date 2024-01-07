@@ -1,6 +1,5 @@
-use crate::array_utils::ArrayExt;
 use crate::eigen_vectors::MinEigenValueVectorSolver;
-use crate::scalar_traits::{Descale, Sqrt, Zero};
+use crate::scalar_traits::{descale_array, Descale, Sqrt, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
 use std::array::from_fn;
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -17,7 +16,7 @@ impl<T: Clone + Descale, const N: usize> WithSqrtExactHomogeneousSolverImpl<T, N
     #[inline]
     pub fn new(random_vector: &[T; N]) -> Self {
         Self {
-            random_vector: descale(random_vector),
+            random_vector: descale_array(random_vector),
         }
     }
 }
@@ -48,7 +47,7 @@ macro_rules! solve_exact_homogeneous_impl_with_sqrt {
                 for a_i in a.iter() {
                     add_to_orthogonality(&mut random_vector, a_i);
                 }
-                descale(&random_vector)
+                descale_array(&random_vector)
             }
         }
     };
@@ -62,7 +61,7 @@ impl<T: Clone + Descale, const N: usize> NoSqrtExactHomogeneousSolverImpl<T, N> 
     #[inline]
     pub fn new(random_vector: &[T; N]) -> Self {
         Self {
-            random_vector: descale(random_vector),
+            random_vector: descale_array(random_vector),
         }
     }
 }
@@ -81,14 +80,14 @@ macro_rules! solve_exact_homogeneous_impl_without_sqrt {
                 let mut abs_sqrs: [Option<T>; $n - 1] = from_fn(|_| None);
                 for i in 0..a.len() {
                     let (a_i, a_prev_all) = a[0..=i].split_last_mut().unwrap();
-                    *a_i = descale(a_i);
+                    *a_i = descale_array(a_i);
                     for prev_i in 0..a_prev_all.len() {
                         add_to_orthogonality_special(
                             a_i,
                             &a_prev_all[prev_i],
                             (&abs_sqrs[prev_i]).as_ref().unwrap(),
                         );
-                        *a_i = descale(a_i);
+                        *a_i = descale_array(a_i);
                     }
                     abs_sqrs[i] = Some(dot_product(a_i, a_i));
                 }
@@ -100,7 +99,7 @@ macro_rules! solve_exact_homogeneous_impl_without_sqrt {
                         (&abs_sqrs[i]).as_ref().unwrap(),
                     );
                 }
-                descale(&random_vector)
+                descale_array(&random_vector)
             }
         }
     };
@@ -128,12 +127,6 @@ solve_exact_homogeneous_impl!(13);
 solve_exact_homogeneous_impl!(14);
 solve_exact_homogeneous_impl!(15);
 solve_exact_homogeneous_impl!(16);
-
-#[inline]
-fn descale<T: Descale, const N: usize>(v: &[T; N]) -> [T; N] {
-    let factor = Descale::descaling_factor(v.iter());
-    v.ref_map(|x| x.descale(&factor))
-}
 
 #[inline]
 fn add_to_orthogonality<T: Zero, const N: usize>(lhs: &mut [T; N], normalized_rhs: &[T; N])

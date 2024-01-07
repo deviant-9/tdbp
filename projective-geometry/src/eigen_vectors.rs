@@ -1,5 +1,4 @@
-use crate::array_utils::ArrayExt;
-use crate::scalar_traits::{Descale, Zero};
+use crate::scalar_traits::{descale_array, Descale, Zero};
 use crate::tensors::{CoSpace, Space, Tensor1, Tensor2};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
@@ -17,9 +16,9 @@ pub struct MaxEigenValueVectorSolverImpl<T, const N: usize> {
 impl<T: Descale, const N: usize> MaxEigenValueVectorSolverImpl<T, N> {
     #[inline]
     pub fn new(random_vector: &[T; N]) -> Self {
-        let factor = T::descaling_factor(random_vector.iter());
-        let random_vector = random_vector.ref_map(|x| x.descale(&factor));
-        Self { random_vector }
+        Self {
+            random_vector: descale_array(random_vector),
+        }
     }
 }
 

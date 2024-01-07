@@ -1,3 +1,4 @@
+use crate::array_utils::ArrayExt;
 use std::ops::{Add, Neg, Sub};
 
 pub trait Zero {
@@ -73,6 +74,12 @@ pub trait Descale {
     where
         Self: 'a;
     fn descale(&self, factor: &Self::Factor) -> Self;
+}
+
+#[inline]
+pub fn descale_array<T: Descale, const N: usize>(v: &[T; N]) -> [T; N] {
+    let factor = Descale::descaling_factor(v.iter());
+    v.ref_map(|x| x.descale(&factor))
 }
 
 impl Descale for f64 {
