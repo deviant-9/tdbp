@@ -15,3 +15,4 @@ pub mod levi_civita;
 pub mod projective_primitives;
 pub mod scalar_traits;
 pub mod tensors;
+pub mod triangulator;

@@ -25,6 +25,11 @@ where
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
 {
     #[inline]
+    pub fn get_s(&self) -> S {
+        self.0.s0.clone()
+    }
+
+    #[inline]
     pub fn from_contra_tensor(tensor: &Tensor1<T, S, N>) -> Point<T, S, N> {
         Point(tensor.descale())
     }
