@@ -174,11 +174,12 @@ macro_rules! from_exact_points_impl {
                             a_ij_flat
                         })
                     });
-                let a_slice = points_a.flatten();
-                let a: [[T; $n * $n]; $n * $n - 1] = from_fn(|i| a_slice[i].clone());
-                let h_flat = self.equations_solver.solve(&a);
+                let a_slice_ref: &[[T; $n * $n]] = points_a.flatten();
+                let a_ref: &[[T; $n * $n]; $n * $n - 1] = a_slice_ref.try_into().unwrap();
+                let h_flat = self.equations_solver.solve(a_ref);
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
-                let h: [[T; $n]; $n] = from_fn(|i| h_slice[i].clone());
+                let h_ref: &[[T; $n]; $n] = h_slice.try_into().unwrap();
+                let h: [[T; $n]; $n] = h_ref.clone();
                 let s_in = points[0].0.contra_tensor().s0.clone();
                 let s_out = points[0].1.contra_tensor().s0.clone();
                 H::from_tensor(&Tensor2::from_raw(s_out, CoSpace(s_in), h))
@@ -260,7 +261,8 @@ macro_rules! from_points_impl {
                     .solve(&a.as_slice())
                     .expect("We already checked points.len()");
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
-                let h: [[T; $n]; $n] = from_fn(|i| h_slice[i].clone());
+                let h_ref: &[[T; $n]; $n] = h_slice.try_into().unwrap();
+                let h: [[T; $n]; $n] = h_ref.clone();
                 let s_in = points[0].0.contra_tensor().s0.clone();
                 let s_out = points[0].1.contra_tensor().s0.clone();
                 Ok(H::from_tensor(&Tensor2::from_raw(s_out, CoSpace(s_in), h)))
@@ -332,8 +334,8 @@ mod tests {
                 Point1D::from_normal_coords(p_out, H2OutS),
             )
         });
-        let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
+        let random_vector: &[f64; 2 * 2] = RANDOM_VECTOR[..2 * 2].try_into().unwrap();
+        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(random_vector);
         let solver = HFromExactPointsSolverImpl::new(equations_solver);
         let h = solver.solve(&points);
         assert_eq!(
@@ -365,8 +367,8 @@ mod tests {
                 Point1D::from_normal_coords(p_out, H2OutS),
             )
         });
-        let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
+        let random_vector: &[f64; 2 * 2] = RANDOM_VECTOR[..2 * 2].try_into().unwrap();
+        let max_solver = MaxEigenValueVectorSolverImpl::new(random_vector);
         let min_solver = MinEigenValueVectorSolverImpl::new(max_solver);
         let equations_solver = HomogeneousSolverImpl::new(min_solver);
         let h_solver = HFromPointsSolverImpl::new(equations_solver);
@@ -405,8 +407,8 @@ mod tests {
                 Point2D::from_normal_coords(p_out, H3OutS),
             )
         });
-        let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
+        let random_vector: &[f64; 3 * 3] = RANDOM_VECTOR[..3 * 3].try_into().unwrap();
+        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(random_vector);
         let solver = HFromExactPointsSolverImpl::new(equations_solver);
         let h = solver.solve(&points);
         assert_eq!(
@@ -449,8 +451,8 @@ mod tests {
                 Point2D::from_normal_coords(p_out, H3OutS),
             )
         });
-        let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
+        let random_vector: &[f64; 3 * 3] = RANDOM_VECTOR[..3 * 3].try_into().unwrap();
+        let max_solver = MaxEigenValueVectorSolverImpl::new(random_vector);
         let min_solver = MinEigenValueVectorSolverImpl::new(max_solver);
         let equations_solver = HomogeneousSolverImpl::new(min_solver);
         let h_solver = HFromPointsSolverImpl::new(equations_solver);
@@ -496,8 +498,8 @@ mod tests {
                 Point3D::from_normal_coords(p_out, H4OutS),
             )
         });
-        let random_vector = from_fn(|i| RANDOM_VECTOR[i].clone());
-        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
+        let random_vector: &[f64; 4 * 4] = RANDOM_VECTOR[..4 * 4].try_into().unwrap();
+        let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(random_vector);
         let solver = HFromExactPointsSolverImpl::new(equations_solver);
         let h = solver.solve(&points);
         assert_eq!(

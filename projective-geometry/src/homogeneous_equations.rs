@@ -235,7 +235,7 @@ macro_rules! solve_homogeneous_impl {
                             })
                         }),
                     );
-                Ok(self.min_solver.min_eigen_value_vector(&m).raw.clone())
+                Ok(self.min_solver.min_eigen_value_vector(&m).raw)
             }
         }
     };
