@@ -1,10 +1,11 @@
 use crate::array_utils::ArrayExt;
-use crate::homogeneous_equations::{ExactHomogeneousSolver, HomogeneousSolver};
+use crate::homogeneous_equations::{
+    get_ax_collinear_y_equations_for_a, ExactHomogeneousSolver, HomogeneousSolver,
+};
 use crate::homography::H;
 use crate::projective_primitives::Point;
 use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
-use std::array::from_fn;
 use std::ops::{Div, Mul};
 
 pub trait HFromExactPointsSolver<T, const N: usize, const POINTS_N: usize> {
@@ -46,20 +47,10 @@ macro_rules! from_exact_points_impl {
             ) -> H<T, SIn, SOut, $n> {
                 let points_a: [[[T; $n * $n]; $n - 1]; $n + 1] =
                     points.ref_map(|(in_point, out_point)| {
-                        let in_tensor = in_point.contra_tensor();
-                        let in_raw = &in_tensor.raw;
-                        let out_tensor = out_point.contra_tensor();
-                        let out_raw = &out_tensor.raw;
-                        from_fn(|equation_i| {
-                            let j = equation_i + 1;
-                            let mut a_ij_flat: [T; $n * $n] = from_fn(|_| T::zero());
-                            let (a_ij, _) = a_ij_flat.as_chunks_mut::<$n>();
-                            for k in 0..$n {
-                                a_ij[0][k] = &in_raw[k] * &out_raw[j];
-                                a_ij[j][k] = -&(&out_raw[0] * &in_raw[k]);
-                            }
-                            a_ij_flat
-                        })
+                        get_ax_collinear_y_equations_for_a(
+                            &in_point.contra_tensor().raw,
+                            &out_point.contra_tensor().raw,
+                        )
                     });
                 let a_slice_ref: &[[T; $n * $n]] = points_a.flatten();
                 let a_ref: &[[T; $n * $n]; $n * $n - 1] = a_slice_ref.try_into().unwrap();
@@ -124,28 +115,18 @@ macro_rules! from_points_impl {
                 if points.len() < $n + 1 {
                     return Err(FromPointsError::NotEnoughPoints);
                 }
-                let mut a: Vec<[T; $n * $n]> =
-                    Vec::with_capacity(points.len() * ($n * $n - $n) / 2);
-                for (in_point, out_point) in points {
-                    let in_tensor = in_point.contra_tensor();
-                    let in_raw = &in_tensor.raw;
-                    let out_tensor = out_point.contra_tensor();
-                    let out_raw = &out_tensor.raw;
-                    for i in 0usize..($n - 1) {
-                        for j in (i + 1)..$n {
-                            let mut a_ij_flat: [T; $n * $n] = from_fn(|_| T::zero());
-                            let (a_ij, _) = a_ij_flat.as_chunks_mut::<$n>();
-                            for k in 0..$n {
-                                a_ij[i][k] = &in_raw[k] * &out_raw[j];
-                                a_ij[j][k] = -&(&out_raw[i] * &in_raw[k]);
-                            }
-                            a.push(a_ij_flat);
-                        }
-                    }
-                }
+                let points_a: Box<[[[T; $n * $n]; $n - 1]]> = points
+                    .iter()
+                    .map(|(in_point, out_point)| {
+                        get_ax_collinear_y_equations_for_a(
+                            &in_point.contra_tensor().raw,
+                            &out_point.contra_tensor().raw,
+                        )
+                    })
+                    .collect();
                 let h_flat = self
                     .equations_solver
-                    .solve(&a.as_slice())
+                    .solve(points_a.flatten())
                     .expect("We already checked points.len()");
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
                 let h_ref: &[[T; $n]; $n] = h_slice.try_into().unwrap();

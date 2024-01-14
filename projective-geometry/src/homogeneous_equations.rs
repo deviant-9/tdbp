@@ -257,6 +257,26 @@ struct SolutionSpace<const VARS_N: usize>;
 
 impl<const VARS_N: usize> Space<VARS_N> for SolutionSpace<VARS_N> {}
 
+pub fn get_ax_collinear_y_equations_for_a<T: Zero, const X_N: usize, const Y_N: usize>(
+    x: &[T; X_N],
+    y: &[T; Y_N],
+) -> [[T; X_N * Y_N]; Y_N - 1]
+where
+    for<'a> &'a T: Neg<Output = T>,
+    for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
+{
+    from_fn(|equation_i| {
+        let j = equation_i + 1;
+        let mut a_ij_flat: [T; X_N * Y_N] = from_fn(|_| T::zero());
+        let (a_ij, _) = a_ij_flat.as_chunks_mut::<X_N>();
+        for k in 0..X_N {
+            a_ij[0][k] = &x[k] * &y[j];
+            a_ij[j][k] = -&(&y[0] * &x[k]);
+        }
+        a_ij_flat
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,6 +356,31 @@ mod tests {
         );
         assert!(dot_product(&a[0], &null_vector).abs() < 0.000000001);
         assert!(dot_product(&a[1], &null_vector).abs() < 0.000000001);
+    }
+
+    #[test]
+    fn test_get_ax_collinear_y_equations_for_a() {
+        let a: [[f64; 4]; 3] = [
+            [28., 186., 546., 821.],
+            [366., 550., 801., 588.],
+            [361., 61., 256., 386.],
+        ];
+        let x: [f64; 4] = [910., 359., 268., 989.];
+        let y: [f64; 3] = [
+            dot_product(&a[0], &x),
+            dot_product(&a[1], &x),
+            dot_product(&a[2], &x),
+        ];
+        let equations: [[f64; 3 * 4]; 3 - 1] = get_ax_collinear_y_equations_for_a(&x, &y);
+        let equations_abs = abs(equations.flatten());
+        assert!(
+            equations_abs >= 0.1,
+            "equations coefficients are all too small"
+        );
+        let flat_a = a.flatten();
+        for equation in &equations {
+            assert!(dot_product(equation, flat_a) < 0.000000001);
+        }
     }
 
     fn abs(v: &[f64]) -> f64 {
