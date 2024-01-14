@@ -4,6 +4,7 @@ use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
 use std::ops::Mul;
 
+#[derive(Copy, Clone, Debug)]
 pub struct Camera<T, SWorld: Space<4>, SImage: Space<3>>(
     Tensor2<T, SImage, CoSpace<4, SWorld>, 3, 4>,
 );

@@ -4,7 +4,7 @@ use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
 use std::ops::Mul;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct H<T, SIn: Space<N>, SOut: Space<N>, const N: usize>(
     Tensor2<T, SOut, CoSpace<N, SIn>, N, N>,
 );

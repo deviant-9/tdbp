@@ -2,19 +2,19 @@ use crate::scalar_traits::{Descale, One, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor1, Tensor2};
 use std::ops::{Div, Mul};
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Point<T, S: Space<N>, const N: usize>(Tensor1<T, S, N>);
 
 pub type Point1D<T, S> = Point<T, S, 2>;
 pub type Point2D<T, S> = Point<T, S, 3>;
 pub type Point3D<T, S> = Point<T, S, 4>;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Line2D<T, S: Space<3>>(Tensor1<T, CoSpace<3, S>, 3>);
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Line3D<T, S: Space<4>>(Tensor2<T, S, S, 4, 4>);
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Plane3D<T, S: Space<4>>(Tensor1<T, CoSpace<4, S>, 4>);
 
 impl<T: Clone + Descale + Zero, S: Space<N>, const N: usize> Point<T, S, N>
