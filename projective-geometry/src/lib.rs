@@ -8,6 +8,7 @@
 pub mod adjugate;
 pub mod array_utils;
 pub mod camera;
+pub mod camera_from_points;
 pub mod eigen_vectors;
 pub mod homogeneous_equations;
 pub mod homography;
