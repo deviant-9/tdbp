@@ -4,17 +4,17 @@ use crate::tensors::{CoSpace, Space, Tensor2};
 use std::array::from_fn;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-pub trait ExactHomogeneousSolver<T, const N: usize, const EQUATIONS_N: usize> {
-    fn solve(&self, matrix: &[[T; N]; EQUATIONS_N]) -> [T; N];
+pub trait ExactHomogeneousSolver<T, const VARS_N: usize, const EQUATIONS_N: usize> {
+    fn solve(&self, matrix: &[[T; VARS_N]; EQUATIONS_N]) -> [T; VARS_N];
 }
 
-pub struct WithSqrtExactHomogeneousSolverImpl<T, const N: usize> {
-    random_vector: [T; N],
+pub struct WithSqrtExactHomogeneousSolverImpl<T, const VARS_N: usize> {
+    random_vector: [T; VARS_N],
 }
 
-impl<T: Clone + Descale, const N: usize> WithSqrtExactHomogeneousSolverImpl<T, N> {
+impl<T: Clone + Descale, const VARS_N: usize> WithSqrtExactHomogeneousSolverImpl<T, VARS_N> {
     #[inline]
-    pub fn new(random_vector: &[T; N]) -> Self {
+    pub fn new(random_vector: &[T; VARS_N]) -> Self {
         Self {
             random_vector: descale_array(random_vector),
         }
@@ -22,16 +22,17 @@ impl<T: Clone + Descale, const N: usize> WithSqrtExactHomogeneousSolverImpl<T, N
 }
 
 macro_rules! solve_exact_homogeneous_impl_with_sqrt {
-    ($n:expr) => {
-        impl<T: Clone + Zero + Descale + Sqrt<Output = T>> ExactHomogeneousSolver<T, $n, { $n - 1 }>
-            for WithSqrtExactHomogeneousSolverImpl<T, $n>
+    ($vars_n:expr) => {
+        impl<T: Clone + Zero + Descale + Sqrt<Output = T>>
+            ExactHomogeneousSolver<T, $vars_n, { $vars_n - 1 }>
+            for WithSqrtExactHomogeneousSolverImpl<T, $vars_n>
         where
             for<'a, 'b> &'a T: Add<&'b T, Output = T>,
             for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
             for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
             for<'a, 'b> &'a T: Div<&'b T, Output = T>,
         {
-            fn solve(&self, matrix: &[[T; $n]; $n - 1]) -> [T; $n] {
+            fn solve(&self, matrix: &[[T; $vars_n]; $vars_n - 1]) -> [T; $vars_n] {
                 let mut a = matrix.clone();
                 for i in 0..a.len() {
                     let (a_i, a_prev_all) = a[0..=i].split_last_mut().unwrap();
@@ -53,13 +54,13 @@ macro_rules! solve_exact_homogeneous_impl_with_sqrt {
     };
 }
 
-pub struct NoSqrtExactHomogeneousSolverImpl<T, const N: usize> {
-    random_vector: [T; N],
+pub struct NoSqrtExactHomogeneousSolverImpl<T, const VARS_N: usize> {
+    random_vector: [T; VARS_N],
 }
 
-impl<T: Clone + Descale, const N: usize> NoSqrtExactHomogeneousSolverImpl<T, N> {
+impl<T: Clone + Descale, const VARS_N: usize> NoSqrtExactHomogeneousSolverImpl<T, VARS_N> {
     #[inline]
-    pub fn new(random_vector: &[T; N]) -> Self {
+    pub fn new(random_vector: &[T; VARS_N]) -> Self {
         Self {
             random_vector: descale_array(random_vector),
         }
@@ -67,17 +68,17 @@ impl<T: Clone + Descale, const N: usize> NoSqrtExactHomogeneousSolverImpl<T, N> 
 }
 
 macro_rules! solve_exact_homogeneous_impl_without_sqrt {
-    ($n:expr) => {
-        impl<T: Clone + Zero + Descale> ExactHomogeneousSolver<T, $n, { $n - 1 }>
-            for NoSqrtExactHomogeneousSolverImpl<T, $n>
+    ($vars_n:expr) => {
+        impl<T: Clone + Zero + Descale> ExactHomogeneousSolver<T, $vars_n, { $vars_n - 1 }>
+            for NoSqrtExactHomogeneousSolverImpl<T, $vars_n>
         where
             for<'a, 'b> &'a T: Add<&'b T, Output = T>,
             for<'a, 'b> &'a T: Sub<&'b T, Output = T>,
             for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
         {
-            fn solve(&self, matrix: &[[T; $n]; $n - 1]) -> [T; $n] {
+            fn solve(&self, matrix: &[[T; $vars_n]; $vars_n - 1]) -> [T; $vars_n] {
                 let mut a = matrix.clone();
-                let mut abs_sqrs: [Option<T>; $n - 1] = from_fn(|_| None);
+                let mut abs_sqrs: [Option<T>; $vars_n - 1] = from_fn(|_| None);
                 for i in 0..a.len() {
                     let (a_i, a_prev_all) = a[0..=i].split_last_mut().unwrap();
                     *a_i = descale_array(a_i);
@@ -106,9 +107,9 @@ macro_rules! solve_exact_homogeneous_impl_without_sqrt {
 }
 
 macro_rules! solve_exact_homogeneous_impl {
-    ($n:expr) => {
-        solve_exact_homogeneous_impl_with_sqrt!($n);
-        solve_exact_homogeneous_impl_without_sqrt!($n);
+    ($vars_n:expr) => {
+        solve_exact_homogeneous_impl_with_sqrt!($vars_n);
+        solve_exact_homogeneous_impl_without_sqrt!($vars_n);
     };
 }
 
@@ -183,8 +184,8 @@ pub enum SolveHomogeneousError {
     NotEnoughEquations,
 }
 
-pub trait HomogeneousSolver<T, const N: usize> {
-    fn solve(&self, matrix: &[[T; N]]) -> Result<[T; N], SolveHomogeneousError>;
+pub trait HomogeneousSolver<T, const VARS_N: usize> {
+    fn solve(&self, matrix: &[[T; VARS_N]]) -> Result<[T; VARS_N], SolveHomogeneousError>;
 }
 
 pub struct HomogeneousSolverImpl<MinSolver> {
@@ -199,9 +200,9 @@ impl<MinSolver> HomogeneousSolverImpl<MinSolver> {
 }
 
 macro_rules! solve_homogeneous_impl {
-    ($n:expr) => {
-        impl<T: Clone + Zero + Descale, MinSolver: MinEigenValueVectorSolver<T, $n>>
-            HomogeneousSolver<T, $n> for HomogeneousSolverImpl<MinSolver>
+    ($vars_n:expr) => {
+        impl<T: Clone + Zero + Descale, MinSolver: MinEigenValueVectorSolver<T, $vars_n>>
+            HomogeneousSolver<T, $vars_n> for HomogeneousSolverImpl<MinSolver>
         where
             for<'a> &'a T: Neg<Output = T>,
             for<'a, 'b> &'a T: Add<&'b T, Output = T>,
@@ -210,24 +211,32 @@ macro_rules! solve_homogeneous_impl {
             for<'a, 'b> &'a T: Div<&'b T, Output = T>,
             for<'a, 'b> &'a T: PartialOrd<&'b T>,
         {
-            fn solve(&self, matrix: &[[T; $n]]) -> Result<[T; $n], SolveHomogeneousError> {
-                if matrix.len() < $n - 1 {
+            fn solve(
+                &self,
+                matrix: &[[T; $vars_n]],
+            ) -> Result<[T; $vars_n], SolveHomogeneousError> {
+                if matrix.len() < $vars_n - 1 {
                     return Err(SolveHomogeneousError::NotEnoughEquations);
                 }
-                let m: Tensor2<T, SolutionSpace<$n>, CoSpace<$n, SolutionSpace<$n>>, $n, $n> =
-                    Tensor2::from_raw(
-                        SolutionSpace,
-                        CoSpace(SolutionSpace),
-                        from_fn(|i| {
-                            from_fn(|j| {
-                                matrix
-                                    .iter()
-                                    .map(|a_k| &a_k[i])
-                                    .zip(matrix.iter().map(|a_k| &a_k[j]))
-                                    .fold(T::zero(), |acc, (a_ki, a_kj)| &acc + &(a_ki * a_kj))
-                            })
-                        }),
-                    );
+                let m: Tensor2<
+                    T,
+                    SolutionSpace<$vars_n>,
+                    CoSpace<$vars_n, SolutionSpace<$vars_n>>,
+                    $vars_n,
+                    $vars_n,
+                > = Tensor2::from_raw(
+                    SolutionSpace,
+                    CoSpace(SolutionSpace),
+                    from_fn(|i| {
+                        from_fn(|j| {
+                            matrix
+                                .iter()
+                                .map(|a_k| &a_k[i])
+                                .zip(matrix.iter().map(|a_k| &a_k[j]))
+                                .fold(T::zero(), |acc, (a_ki, a_kj)| &acc + &(a_ki * a_kj))
+                        })
+                    }),
+                );
                 Ok(self.min_solver.min_eigen_value_vector(&m).raw)
             }
         }
@@ -244,9 +253,9 @@ solve_homogeneous_impl!(8);
 solve_homogeneous_impl!(9);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SolutionSpace<const N: usize>;
+struct SolutionSpace<const VARS_N: usize>;
 
-impl<const N: usize> Space<N> for SolutionSpace<N> {}
+impl<const VARS_N: usize> Space<VARS_N> for SolutionSpace<VARS_N> {}
 
 #[cfg(test)]
 mod tests {
