@@ -67,8 +67,8 @@ macro_rules! from_exact_points_impl {
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
                 let h_ref: &[[T; $n]; $n] = h_slice.try_into().unwrap();
                 let h: [[T; $n]; $n] = h_ref.clone();
-                let s_in = points[0].0.contra_tensor().s0.clone();
-                let s_out = points[0].1.contra_tensor().s0.clone();
+                let s_in = points[0].0.get_s();
+                let s_out = points[0].1.get_s();
                 H::from_tensor(&Tensor2::from_raw(s_out, CoSpace(s_in), h))
             }
         }
@@ -150,8 +150,8 @@ macro_rules! from_points_impl {
                 let (h_slice, _) = h_flat.as_chunks::<$n>();
                 let h_ref: &[[T; $n]; $n] = h_slice.try_into().unwrap();
                 let h: [[T; $n]; $n] = h_ref.clone();
-                let s_in = points[0].0.contra_tensor().s0.clone();
-                let s_out = points[0].1.contra_tensor().s0.clone();
+                let s_in = points[0].0.get_s();
+                let s_out = points[0].1.get_s();
                 Ok(H::from_tensor(&Tensor2::from_raw(s_out, CoSpace(s_in), h)))
             }
         }
