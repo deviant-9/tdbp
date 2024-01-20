@@ -10,6 +10,7 @@ pub mod array_utils;
 pub mod camera;
 pub mod camera_from_points;
 pub mod eigen_vectors;
+pub mod fundamental_matrix;
 pub mod homogeneous_equations;
 pub mod homography;
 pub mod homography_from_points;

@@ -1,5 +1,6 @@
 use crate::camera::Camera;
-use crate::projective_primitives::{Line2D, Line3D, Plane3D, Point};
+use crate::fundamental_matrix::F;
+use crate::projective_primitives::{Line2D, Line3D, Plane3D, Point, Point2D};
 use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
 use std::ops::Mul;
@@ -68,6 +69,11 @@ where
         camera: Camera<T, SWorld, SIn>,
     ) -> Camera<T, SWorld, SOut> {
         Camera::from_tensor(&self.0.contract_tensor2_10(&camera.tensor()))
+    }
+
+    #[inline]
+    pub fn fundamental_matrix_for_e1(&self, e1: &Point2D<T, SOut>) -> F<T, SIn, SOut> {
+        F::from_tensor(&e1.co_tensor().contract_tensor2_10(&self.0))
     }
 }
 
