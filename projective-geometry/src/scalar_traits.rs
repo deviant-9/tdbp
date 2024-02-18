@@ -171,6 +171,27 @@ impl Sqrt for f32 {
     }
 }
 
+pub trait Hypot<T> {
+    type Output;
+    fn hypot(&self, other: &T) -> Self::Output;
+}
+
+impl Hypot<f64> for f64 {
+    type Output = f64;
+
+    fn hypot(&self, other: &f64) -> Self::Output {
+        f64::hypot(*self, *other)
+    }
+}
+
+impl Hypot<f32> for f32 {
+    type Output = f32;
+
+    fn hypot(&self, other: &f32) -> Self::Output {
+        f32::hypot(*self, *other)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

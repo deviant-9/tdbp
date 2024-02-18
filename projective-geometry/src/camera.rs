@@ -2,14 +2,40 @@ use crate::array_utils::ArrayExt;
 use crate::fundamental_matrix::F;
 use crate::homography::H;
 use crate::projective_primitives::{Line2D, Line3D, Plane3D, Point2D, Point3D};
-use crate::scalar_traits::{Descale, ScalarAdd, ScalarNeg, ScalarSub, Zero};
+use crate::scalar_traits::{Descale, Hypot, ScalarAdd, ScalarNeg, ScalarSub, Zero};
 use crate::tensors::{CoSpace, Space, Tensor2};
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Camera<T, SWorld: Space<4>, SImage: Space<3>>(
     Tensor2<T, SImage, CoSpace<4, SWorld>, 3, 4>,
 );
+
+#[derive(Copy, Clone, Debug)]
+pub struct CameraInternalParams<T> {
+    pub fx: T,
+    pub fy: T,
+    pub x0: T,
+    pub y0: T,
+    pub s: T,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct CameraExternalParams<T, SWorld: Space<4>> {
+    pub center: Point3D<T, SWorld>,
+    pub ax_sin: T,
+    pub ax_cos: T,
+    pub ay_sin: T,
+    pub ay_cos: T,
+    pub az_sin: T,
+    pub az_cos: T,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct CameraParams<T, SWorld: Space<4>> {
+    pub internal: CameraInternalParams<T>,
+    pub external: CameraExternalParams<T, SWorld>,
+}
 
 impl<T: Clone + Descale + Zero, SWorld: Space<4>, SImage: Space<3>> Camera<T, SWorld, SImage>
 where
@@ -88,6 +114,74 @@ where
         let some_h = H::from_tensor(&h1.contract_tensor2_10(&h0.adjugate()));
         some_h.fundamental_matrix_for_e1(&e1)
     }
+
+    pub fn get_params(&self) -> CameraParams<T, SWorld>
+    where
+        T: Hypot<T, Output = T>,
+        for<'a, 'b> &'a T: Div<&'b T, Output = T>,
+    {
+        let [[m00, m01, m02, _], [m10, m11, m12, _], [m20, m21, m22, _]] = self.0.raw.clone();
+
+        let ((ax_sin, ax_cos), m22) = Self::get_sin_cos_to_zero_x_and_new_y(&m21, &m22);
+        drop(m21);
+        let (m01, m02) = (
+            &(&m01 * &ax_cos) - &(&m02 * &ax_sin),
+            &(&m01 * &ax_sin) + &(&m02 * &ax_cos),
+        );
+        let (m11, m12) = (
+            &(&m11 * &ax_cos) - &(&m12 * &ax_sin),
+            &(&m11 * &ax_sin) + &(&m12 * &ax_cos),
+        );
+
+        let ((ay_sin, ay_cos), m22) = Self::get_sin_cos_to_zero_x_and_new_y(&m20, &m22);
+        drop(m20);
+        let (m00, m02) = (
+            &(&m00 * &ay_cos) - &(&m02 * &ay_sin),
+            &(&m00 * &ay_sin) + &(&m02 * &ay_cos),
+        );
+        let (m10, m12) = (
+            &(&m10 * &ay_cos) - &(&m12 * &ay_sin),
+            &(&m10 * &ay_sin) + &(&m12 * &ay_cos),
+        );
+
+        let ((az_sin, az_cos), m11) = Self::get_sin_cos_to_zero_x_and_new_y(&m10, &m11);
+        drop(m10);
+        let (m00, m01) = (
+            &(&m00 * &az_cos) - &(&m01 * &az_sin),
+            &(&m00 * &az_sin) + &(&m01 * &az_cos),
+        );
+
+        CameraParams {
+            internal: CameraInternalParams {
+                fx: &m00 / &m22,
+                fy: &m11 / &m22,
+                x0: &m02 / &m22,
+                y0: &m12 / &m22,
+                s: &m01 / &m22,
+            },
+            external: CameraExternalParams {
+                center: self.center(),
+                ax_sin,
+                ax_cos,
+                ay_sin: -&ay_sin,
+                ay_cos,
+                az_sin,
+                az_cos,
+            },
+        }
+    }
+
+    #[inline]
+    fn get_sin_cos_to_zero_x_and_new_y(x: &T, y: &T) -> ((T, T), T)
+    where
+        T: Hypot<T, Output = T>,
+        for<'a, 'b> &'a T: Div<&'b T, Output = T>,
+    {
+        let abs = x.hypot(y);
+        let sin = x / &abs;
+        let cos = y / &abs;
+        ((sin, cos), abs)
+    }
 }
 
 #[cfg(test)]
@@ -142,5 +236,126 @@ mod tests {
             .normal_coords()
             .ref_map(|x| (x * 1000.).round());
         assert_eq!(normal_point_to_test_times_1000, normal_point1_times_1000);
+    }
+
+    #[test]
+    fn test_get_params() {
+        let fx = 0.317448;
+        let fy = 0.126929;
+        let x0 = 0.449578;
+        let y0 = 0.881717;
+        let s = 0.251931;
+        let k = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [[fx, s, x0], [0., fy, y0], [0., 0., 1.]],
+        );
+        let ax: f64 = 1.344503;
+        let ay: f64 = 0.314033;
+        let az: f64 = 2.917331;
+        let (ax_sin, ax_cos) = ax.sin_cos();
+        let (ay_sin, ay_cos) = ay.sin_cos();
+        let (az_sin, az_cos) = az.sin_cos();
+        let rx = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [[1., 0., 0.], [0., ax_cos, -ax_sin], [0., ax_sin, ax_cos]],
+        );
+        let ry = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [[ay_cos, 0., ay_sin], [0., 1., 0.], [-ay_sin, 0., ay_cos]],
+        );
+        let rz = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [[az_cos, -az_sin, 0.], [az_sin, az_cos, 0.], [0., 0., 1.]],
+        );
+        let r = rz.contract_tensor2_10(&ry).contract_tensor2_10(&rx);
+        let cx = 0.984337;
+        let cy = 0.564489;
+        let cz = 0.487036;
+        let pre_m = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SWorld),
+            [[1., 0., 0., -cx], [0., 1., 0., -cy], [0., 0., 1., -cz]],
+        );
+        let m = k
+            .contract_tensor2_10(&r)
+            .contract_tensor2_10(&pre_m)
+            .scale(0.279980);
+        let camera = Camera::from_tensor(&m);
+        let params = camera.get_params();
+        assert_eq!(
+            (fx * 1000000.).round(),
+            (params.internal.fx * 1000000.).round()
+        );
+        assert_eq!(
+            (fy * 1000000.).round(),
+            (params.internal.fy * 1000000.).round()
+        );
+        assert_eq!(
+            (x0 * 1000000.).round(),
+            (params.internal.x0 * 1000000.).round()
+        );
+        assert_eq!(
+            (y0 * 1000000.).round(),
+            (params.internal.y0 * 1000000.).round()
+        );
+        assert_eq!(
+            (s * 1000000.).round(),
+            (params.internal.s * 1000000.).round()
+        );
+        let params_center_normal_coords = params.external.center.normal_coords();
+        assert_eq!(
+            (cx * 1000000.).round(),
+            (params_center_normal_coords[0] * 1000000.).round()
+        );
+        assert_eq!(
+            (cy * 1000000.).round(),
+            (params_center_normal_coords[1] * 1000000.).round()
+        );
+        assert_eq!(
+            (cz * 1000000.).round(),
+            (params_center_normal_coords[2] * 1000000.).round()
+        );
+        let params_rx = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [
+                [1., 0., 0.],
+                [0., params.external.ax_cos, -params.external.ax_sin],
+                [0., params.external.ax_sin, params.external.ax_cos],
+            ],
+        );
+        let params_ry = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [
+                [params.external.ay_cos, 0., params.external.ay_sin],
+                [0., 1., 0.],
+                [-params.external.ay_sin, 0., params.external.ay_cos],
+            ],
+        );
+        let params_rz = Tensor2::from_raw(
+            SImage0,
+            CoSpace(SImage0),
+            [
+                [params.external.az_cos, -params.external.az_sin, 0.],
+                [params.external.az_sin, params.external.az_cos, 0.],
+                [0., 0., 1.],
+            ],
+        );
+        let params_r = params_rz
+            .contract_tensor2_10(&params_ry)
+            .contract_tensor2_10(&params_rx);
+        for i in 0..3 {
+            for j in 0..3 {
+                assert_eq!(
+                    (r.raw[i][j] * 1000000.).round(),
+                    (params_r.raw[i][j] * 1000000.).round()
+                );
+            }
+        }
     }
 }
