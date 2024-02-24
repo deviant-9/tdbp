@@ -55,7 +55,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::camera::Camera;
-    use crate::projective_primitives::Point3D;
+    use crate::projective_primitives::{assert_point_near, Point3D};
     use crate::tensors::{CoSpace, Space, Tensor2};
     use crate::triangulator::{Triangulator, TriangulatorImpl};
 
@@ -97,12 +97,10 @@ mod tests {
         let point1 = camera1.project_point(&point3d);
         let random_2d_homogeneous_coords = [0.7640727990553938, 0.5580193420125891, 1.];
         let triangulator = TriangulatorImpl::new(&random_2d_homogeneous_coords);
-        assert_eq!(
-            triangulator
-                .triangulate(&camera0, &camera1, &point0, &point1)
-                .normal_coords()
-                .map(|x| x.round()),
-            point3d_normal_coords
+        assert_point_near(
+            triangulator.triangulate(&camera0, &camera1, &point0, &point1),
+            point3d,
+            1e-6,
         );
     }
 }

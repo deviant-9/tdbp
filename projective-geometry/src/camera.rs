@@ -37,6 +37,20 @@ pub struct CameraParams<T, SWorld: Space<4>> {
     pub external: CameraExternalParams<T, SWorld>,
 }
 
+#[cfg(test)]
+pub fn assert_camera_near<SWorld: Space<4>, SImage: Space<3>>(
+    left: Camera<f64, SWorld, SImage>,
+    right: Camera<f64, SWorld, SImage>,
+    precision: f64,
+) {
+    crate::tensors::assert_tensor2_collinear(
+        left.tensor(),
+        right.tensor(),
+        0.1, // Cameras are always "descaled"
+        precision,
+    );
+}
+
 impl<T: Clone + Descale + Zero, SWorld: Space<4>, SImage: Space<3>> Camera<T, SWorld, SImage>
 where
     for<'a> &'a T: ScalarNeg<Output = T>,
@@ -186,10 +200,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::array_utils::ArrayExt;
     use crate::camera::Camera;
-    use crate::projective_primitives::{Point2D, Point3D};
+    use crate::projective_primitives::{assert_point_near, Point2D, Point3D};
     use crate::tensors::{CoSpace, Space, Tensor2};
+    use crate::test_utils::assert_near;
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct SWorld;
@@ -226,16 +240,11 @@ mod tests {
         ));
         let point0 = camera0.project_point(&point_3d);
         let point1 = camera1.project_point(&point_3d);
-        let normal_point1_times_1000 = point1.normal_coords().ref_map(|x| (x * 1000.).round());
         let origin1 = Point2D::from_normal_coords(&[0., 0.], SImage1);
         let line_with_point1 = origin1.line_to_point(&point1);
         let f = camera0.fundamental_matrix(&camera1);
         let line1 = f.project_point(&point0);
-        let point_to_test = line1.cross_with_line(&line_with_point1);
-        let normal_point_to_test_times_1000 = point_to_test
-            .normal_coords()
-            .ref_map(|x| (x * 1000.).round());
-        assert_eq!(normal_point_to_test_times_1000, normal_point1_times_1000);
+        assert_point_near(line1.cross_with_line(&line_with_point1), point1, 1e-6);
     }
 
     #[test]
@@ -286,39 +295,15 @@ mod tests {
             .scale(0.279980);
         let camera = Camera::from_tensor(&m);
         let params = camera.get_params();
-        assert_eq!(
-            (fx * 1000000.).round(),
-            (params.internal.fx * 1000000.).round()
-        );
-        assert_eq!(
-            (fy * 1000000.).round(),
-            (params.internal.fy * 1000000.).round()
-        );
-        assert_eq!(
-            (x0 * 1000000.).round(),
-            (params.internal.x0 * 1000000.).round()
-        );
-        assert_eq!(
-            (y0 * 1000000.).round(),
-            (params.internal.y0 * 1000000.).round()
-        );
-        assert_eq!(
-            (s * 1000000.).round(),
-            (params.internal.s * 1000000.).round()
-        );
+        assert_near(fx, params.internal.fx, 1e-6);
+        assert_near(fy, params.internal.fy, 1e-6);
+        assert_near(x0, params.internal.x0, 1e-6);
+        assert_near(y0, params.internal.y0, 1e-6);
+        assert_near(s, params.internal.s, 1e-6);
         let params_center_normal_coords = params.external.center.normal_coords();
-        assert_eq!(
-            (cx * 1000000.).round(),
-            (params_center_normal_coords[0] * 1000000.).round()
-        );
-        assert_eq!(
-            (cy * 1000000.).round(),
-            (params_center_normal_coords[1] * 1000000.).round()
-        );
-        assert_eq!(
-            (cz * 1000000.).round(),
-            (params_center_normal_coords[2] * 1000000.).round()
-        );
+        assert_near(cx, params_center_normal_coords[0], 1e-6);
+        assert_near(cy, params_center_normal_coords[1], 1e-6);
+        assert_near(cz, params_center_normal_coords[2], 1e-6);
         let params_rx = Tensor2::from_raw(
             SImage0,
             CoSpace(SImage0),
@@ -351,10 +336,7 @@ mod tests {
             .contract_tensor2_10(&params_rx);
         for i in 0..3 {
             for j in 0..3 {
-                assert_eq!(
-                    (r.raw[i][j] * 1000000.).round(),
-                    (params_r.raw[i][j] * 1000000.).round()
-                );
+                assert_near(r.raw[i][j], params_r.raw[i][j], 1e-6);
             }
         }
     }

@@ -10,6 +10,20 @@ pub struct H<T, SIn: Space<N>, SOut: Space<N>, const N: usize>(
     Tensor2<T, SOut, CoSpace<N, SIn>, N, N>,
 );
 
+#[cfg(test)]
+pub fn assert_homography_near<SIn: Space<N>, SOut: Space<N>, const N: usize>(
+    left: H<f64, SIn, SOut, N>,
+    right: H<f64, SIn, SOut, N>,
+    precision: f64,
+) {
+    crate::tensors::assert_tensor2_collinear(
+        left.tensor(),
+        right.tensor(),
+        0.1, // Homographies are always "descaled"
+        precision,
+    );
+}
+
 impl<T: Clone + Descale + Zero, SIn: Space<N>, SOut: Space<N>, const N: usize> H<T, SIn, SOut, N>
 where
     for<'a> &'a T: ScalarNeg<Output = T>,

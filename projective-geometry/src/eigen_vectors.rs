@@ -126,6 +126,8 @@ min_eigen_value_vector_impl!(9);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tensors::assert_tensor1_collinear;
+    use crate::test_utils::assert_near;
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct S3;
@@ -142,19 +144,10 @@ mod tests {
         let max_solver = MaxEigenValueVectorSolverImpl::new(&random_vector);
         let eigen_vector = max_solver.max_eigen_value_vector(&m);
         let multiplied = m.contract_tensor1_10(&eigen_vector);
-        let angle_cos = angle_cos(&eigen_vector.raw, &multiplied.raw);
-        assert!(
-            (angle_cos.abs() - 1.).abs() < 0.000000001,
-            "cos(angle) = {}",
-            angle_cos
-        );
+        assert_tensor1_collinear(eigen_vector, multiplied, 1e-3, 1e-6);
         let eigen_value = dot_product(&multiplied.raw, &eigen_vector.raw)
             / dot_product(&eigen_vector.raw, &eigen_vector.raw);
-        assert!(
-            (eigen_value - 2025.9460699086276).abs() < 0.000000001,
-            "eigen_value = {}",
-            eigen_value
-        );
+        assert_near(eigen_value, 2025.9460699086276, 1e-6);
     }
 
     #[test]
@@ -175,24 +168,10 @@ mod tests {
             "eigen vector is too long"
         );
         let multiplied = m.contract_tensor1_10(&eigen_vector);
-        let angle_cos = angle_cos(&eigen_vector.raw, &multiplied.raw);
-        assert!(
-            (angle_cos.abs() - 1.).abs() < 0.000000001,
-            "cos(angle) = {}",
-            angle_cos
-        );
+        assert_tensor1_collinear(eigen_vector, multiplied, 1e-3, 1e-6);
         let eigen_value = dot_product(&multiplied.raw, &eigen_vector.raw)
             / dot_product(&eigen_vector.raw, &eigen_vector.raw);
-        assert!(
-            (eigen_value - 264.9193066718052).abs() < 0.000000001,
-            "eigen_value = {}",
-            eigen_value
-        );
-    }
-
-    fn angle_cos(lhs: &[f64], rhs: &[f64]) -> f64 {
-        assert_eq!(lhs.len(), rhs.len());
-        dot_product(lhs, rhs) / (abs(lhs) * abs(rhs))
+        assert_near(eigen_value, 264.9193066718052, 1e-6);
     }
 
     fn abs(v: &[f64]) -> f64 {

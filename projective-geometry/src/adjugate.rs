@@ -154,9 +154,7 @@ sub_matrix_ext_impl!(9, 9);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar_traits::Zero;
-
-    type T = f64;
+    use crate::tensors::assert_tensor2_collinear;
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct S0_2;
@@ -186,46 +184,12 @@ mod tests {
     struct S1_5;
     impl Space<5> for S1_5 {}
 
-    macro_rules! assert_homogenous_eq {
-        ($lhs:expr, $rhs:expr) => {
-            match (&$lhs, &$rhs) {
-                (lhs, rhs) => {
-                    assert!(homogenous_vectors_equal(lhs, rhs), "{:?} != {:?}", lhs, rhs);
-                }
-            }
-        };
-    }
-
-    fn homogenous_vectors_equal(v0: &[T], v1: &[T]) -> bool {
-        assert_eq!(
-            v0.len(),
-            v1.len(),
-            "homogenous vectors have different lengths"
-        );
-        let v0_max = v0.iter().fold(
-            T::zero(),
-            |acc, x| if x.abs() > acc.abs() { *x } else { acc },
-        );
-        assert_ne!(v0_max, 0., "first homogenous vector is zero vector");
-        let v1_max = v1.iter().fold(
-            T::zero(),
-            |acc, x| if x.abs() > acc.abs() { *x } else { acc },
-        );
-        assert_ne!(v1_max, 0., "second homogenous vector is zero vector");
-        let v0_fixed: Vec<T> = v0.iter().map(|x| x * v1_max).collect();
-        let v1_fixed: Vec<T> = v1.iter().map(|x| x * v0_max).collect();
-        v0_fixed == v1_fixed
-    }
-
     #[test]
     fn test_tensor2_2_adjugate() {
         let so_identity = Tensor2::from_raw(S0_2, CoSpace(S0_2), [[1., 0.], [0., 1.]]);
         let t = Tensor2::from_raw(S0_2, CoSpace(S1_2), [[97., 17.], [41., 37.]]);
         let adjugate = t.adjugate();
-        assert_homogenous_eq!(
-            t.contract_tensor2_10(&adjugate).raw.flatten(),
-            so_identity.raw.flatten()
-        );
+        assert_tensor2_collinear(t.contract_tensor2_10(&adjugate), so_identity, 1e-3, 1e-6);
     }
 
     #[test]
@@ -241,10 +205,7 @@ mod tests {
             [[85., 16., 96.], [19., 64., 13.], [16., 42., 67.]],
         );
         let adjugate = t.adjugate();
-        assert_homogenous_eq!(
-            t.contract_tensor2_10(&adjugate).raw.flatten(),
-            so_identity.raw.flatten()
-        );
+        assert_tensor2_collinear(t.contract_tensor2_10(&adjugate), so_identity, 1e-3, 1e-6);
     }
 
     #[test]
@@ -270,10 +231,7 @@ mod tests {
             ],
         );
         let adjugate = t.adjugate();
-        assert_homogenous_eq!(
-            t.contract_tensor2_10(&adjugate).raw.flatten(),
-            so_identity.raw.flatten()
-        );
+        assert_tensor2_collinear(t.contract_tensor2_10(&adjugate), so_identity, 1e-3, 1e-6);
     }
 
     #[test]
@@ -301,9 +259,6 @@ mod tests {
             ],
         );
         let adjugate = t.adjugate();
-        assert_homogenous_eq!(
-            t.contract_tensor2_10(&adjugate).raw.flatten(),
-            so_identity.raw.flatten()
-        );
+        assert_tensor2_collinear(t.contract_tensor2_10(&adjugate), so_identity, 1e-3, 1e-6);
     }
 }

@@ -61,6 +61,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::camera::assert_camera_near;
     use crate::homogeneous_equations::NoSqrtExactHomogeneousSolverImpl;
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,16 +113,6 @@ mod tests {
         ];
         let equations_solver = NoSqrtExactHomogeneousSolverImpl::new(&random_vector);
         let solver = CameraFromMinimalPointsSolverImpl::new(equations_solver);
-        let solved_camera = solver.solve(&point_pairs);
-        let solved_image_points = world_points.ref_map(|p| solved_camera.project_point(p));
-
-        let image_normal_points_times_1000 =
-            image_points.ref_map(|p| p.normal_coords().ref_map(|x| (x * 1000.).round()));
-        let solved_image_normal_points_times_1000 =
-            solved_image_points.ref_map(|p| p.normal_coords().ref_map(|x| (x * 1000.).round()));
-        assert_eq!(
-            solved_image_normal_points_times_1000,
-            image_normal_points_times_1000
-        );
+        assert_camera_near(solver.solve(&point_pairs), camera, 1e-6);
     }
 }

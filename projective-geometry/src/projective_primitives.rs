@@ -17,6 +17,62 @@ pub struct Line3D<T, S: Space<4>>(Tensor2<T, S, S, 4, 4>);
 #[derive(Copy, Clone, Debug)]
 pub struct Plane3D<T, S: Space<4>>(Tensor1<T, CoSpace<4, S>, 4>);
 
+#[cfg(test)]
+pub fn assert_point_near<S: Space<N>, const N: usize>(
+    left: Point<f64, S, N>,
+    right: Point<f64, S, N>,
+    precision: f64,
+) {
+    crate::tensors::assert_tensor1_collinear(
+        left.contra_tensor(),
+        right.contra_tensor(),
+        0.1, // Points are always "descaled"
+        precision,
+    );
+}
+
+#[cfg(test)]
+pub fn assert_line2d_near<S: Space<3>>(
+    left: Line2D<f64, S>,
+    right: Line2D<f64, S>,
+    precision: f64,
+) {
+    crate::tensors::assert_tensor1_collinear(
+        left.co_tensor(),
+        right.co_tensor(),
+        0.1, // Lines are always "descaled"
+        precision,
+    );
+}
+
+#[cfg(test)]
+pub fn assert_line3d_near<S: Space<4>>(
+    left: Line3D<f64, S>,
+    right: Line3D<f64, S>,
+    precision: f64,
+) {
+    crate::tensors::assert_tensor2_collinear(
+        left.contra_tensor(),
+        right.contra_tensor(),
+        0.1, // Lines are always "descaled"
+        precision,
+    );
+}
+
+#[cfg(test)]
+pub fn assert_plane_near<S: Space<4>>(
+    left: Plane3D<f64, S>,
+    right: Plane3D<f64, S>,
+    precision: f64,
+) {
+    crate::tensors::assert_tensor1_collinear(
+        left.co_tensor(),
+        right.co_tensor(),
+        0.1, // Planes are always "descaled"
+        precision,
+    );
+}
+
 impl<T: Clone + Descale + Zero, S: Space<N>, const N: usize> Point<T, S, N>
 where
     for<'a> &'a T: ScalarNeg<Output = T>,
@@ -344,7 +400,7 @@ mod tests {
     type T = f64;
 
     use super::*;
-    use crate::scalar_traits::Zero;
+    use crate::test_utils::assert_collinear;
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct S1;
@@ -357,51 +413,17 @@ mod tests {
     impl Space<3> for S2 {}
     impl Space<4> for S3 {}
 
-    macro_rules! assert_homogenous_eq {
-        ($lhs:expr, $rhs:expr) => {
-            match (&$lhs, &$rhs) {
-                (lhs, rhs) => {
-                    assert!(homogenous_vectors_equal(lhs, rhs), "{:?} != {:?}", lhs, rhs);
-                }
-            }
-        };
-    }
-
-    fn homogenous_vectors_equal(v0: &[T], v1: &[T]) -> bool {
-        assert_eq!(
-            v0.len(),
-            v1.len(),
-            "homogenous vectors have different lengths"
-        );
-        let v0_max = v0.iter().fold(
-            T::zero(),
-            |acc, x| if x.abs() > acc.abs() { *x } else { acc },
-        );
-        assert_ne!(v0_max, 0., "first homogenous vector is zero vector");
-        let v1_max = v1.iter().fold(
-            T::zero(),
-            |acc, x| if x.abs() > acc.abs() { *x } else { acc },
-        );
-        assert_ne!(v1_max, 0., "second homogenous vector is zero vector");
-        let v0_fixed: Vec<T> = v0.iter().map(|x| x * v1_max).collect();
-        let v1_fixed: Vec<T> = v1.iter().map(|x| x * v0_max).collect();
-        v0_fixed == v1_fixed
-    }
-
     #[test]
     fn test_point1_normal_coords() {
         let p = Point1D::from_normal_coords(&[61.], S1);
-        assert!(homogenous_vectors_equal(&p.contra_tensor().raw, &[61., 1.]));
+        assert_collinear(&p.contra_tensor().raw, &[61., 1.], 0.001, 1e-6);
         assert_eq!(p.normal_coords(), [61.]);
     }
 
     #[test]
     fn test_point2_normal_coords() {
         let p = Point2D::from_normal_coords(&[61., 50.], S2);
-        assert!(homogenous_vectors_equal(
-            &p.contra_tensor().raw,
-            &[61., 50., 1.]
-        ));
+        assert_collinear(&p.contra_tensor().raw, &[61., 50., 1.], 1e-3, 1e-6);
         assert_eq!(p.normal_coords(), [61., 50.]);
     }
 
@@ -425,10 +447,7 @@ mod tests {
         ));
 
         let l10 = p1.line_to_point(&p0);
-        assert!(homogenous_vectors_equal(
-            &l01.co_tensor().raw,
-            &l10.co_tensor().raw
-        ));
+        assert_line2d_near(l01, l10, 1e-6);
     }
 
     fn line2_has_point<S: Space<3>>(line: &Line2D<T, S>, point: &Point2D<T, S>) -> bool {
@@ -438,10 +457,7 @@ mod tests {
     #[test]
     fn test_point3_normal_coords() {
         let p = Point3D::from_normal_coords(&[61., 50., 73.], S3);
-        assert!(homogenous_vectors_equal(
-            &p.contra_tensor().raw,
-            &[61., 50., 73., 1.]
-        ));
+        assert_collinear(&p.contra_tensor().raw, &[61., 50., 73., 1.], 1e-3, 1e-6);
         assert_eq!(p.normal_coords(), [61., 50., 73.]);
     }
 
@@ -479,10 +495,7 @@ mod tests {
         ));
 
         let l10 = p1.line_to_point(&p0);
-        assert_homogenous_eq!(
-            l01.contra_tensor().raw.flatten(),
-            l10.contra_tensor().raw.flatten()
-        );
+        assert_line3d_near(l01, l10, 1e-6);
     }
 
     #[test]
@@ -500,32 +513,11 @@ mod tests {
             &Point3D::from_normal_coords(&[0., 0., 0.], S3)
         ));
 
-        let plane021 = p0.plane_to_points(&p2, &p1);
-        let plane102 = p1.plane_to_points(&p0, &p2);
-        let plane120 = p1.plane_to_points(&p2, &p0);
-        let plane201 = p2.plane_to_points(&p0, &p1);
-        let plane210 = p2.plane_to_points(&p1, &p0);
-        let plane012_co_tensor = plane012.co_tensor();
-        assert!(homogenous_vectors_equal(
-            &plane012_co_tensor.raw,
-            &plane021.co_tensor().raw
-        ));
-        assert!(homogenous_vectors_equal(
-            &plane012_co_tensor.raw,
-            &plane102.co_tensor().raw
-        ));
-        assert!(homogenous_vectors_equal(
-            &plane012_co_tensor.raw,
-            &plane120.co_tensor().raw
-        ));
-        assert!(homogenous_vectors_equal(
-            &plane012_co_tensor.raw,
-            &plane201.co_tensor().raw
-        ));
-        assert!(homogenous_vectors_equal(
-            &plane012_co_tensor.raw,
-            &plane210.co_tensor().raw
-        ));
+        assert_plane_near(plane012, p0.plane_to_points(&p2, &p1), 1e-6);
+        assert_plane_near(plane012, p1.plane_to_points(&p0, &p2), 1e-6);
+        assert_plane_near(plane012, p1.plane_to_points(&p2, &p0), 1e-6);
+        assert_plane_near(plane012, p2.plane_to_points(&p0, &p1), 1e-6);
+        assert_plane_near(plane012, p2.plane_to_points(&p1, &p0), 1e-6);
     }
 
     #[test]
@@ -537,10 +529,7 @@ mod tests {
         let plane012_to_test = p0.plane_to_line(&l12);
         assert!(!is_zero(&plane012_to_test.co_tensor().raw));
         let plane012 = p0.plane_to_points(&p1, &p2);
-        assert!(homogenous_vectors_equal(
-            &plane012_to_test.co_tensor().raw,
-            &plane012.co_tensor().raw
-        ));
+        assert_plane_near(plane012_to_test, plane012, 1e-6);
     }
 
     fn line3_has_point<S: Space<4>>(line: &Line3D<T, S>, point: &Point3D<T, S>) -> bool {
@@ -574,10 +563,7 @@ mod tests {
         let p2 = Point2D::from_normal_coords(&[14., 39.], S2);
         let l01 = p0.line_to_point(&p1);
         let l12 = p1.line_to_point(&p2);
-        assert_eq!(
-            l01.cross_with_line(&l12).normal_coords(),
-            p1.normal_coords()
-        );
+        assert_point_near(l01.cross_with_line(&l12), p1, 1e-6);
     }
 
     #[test]
@@ -589,10 +575,7 @@ mod tests {
         let plane012_to_test = l01.plane_to_point(&p2);
         assert!(!is_zero(&plane012_to_test.co_tensor().raw));
         let plane012 = p0.plane_to_points(&p1, &p2);
-        assert!(homogenous_vectors_equal(
-            &plane012_to_test.co_tensor().raw,
-            &plane012.co_tensor().raw
-        ));
+        assert_plane_near(plane012_to_test, plane012, 1e-6);
     }
 
     #[test]
@@ -603,10 +586,7 @@ mod tests {
         let p3 = Point3D::from_normal_coords(&[38., 69., 87.], S3);
         let l01 = p0.line_to_point(&p1);
         let plane123 = p1.plane_to_points(&p2, &p3);
-        assert_eq!(
-            l01.cross_with_plane(&plane123).normal_coords(),
-            p1.normal_coords()
-        );
+        assert_point_near(l01.cross_with_plane(&plane123), p1, 1e-6);
     }
 
     #[test]
@@ -626,10 +606,7 @@ mod tests {
         let p3 = Point3D::from_normal_coords(&[38., 69., 87.], S3);
         let plane012 = p0.plane_to_points(&p1, &p2);
         let l23 = p2.line_to_point(&p3);
-        assert_eq!(
-            plane012.cross_with_line(&l23).normal_coords(),
-            p2.normal_coords()
-        );
+        assert_point_near(plane012.cross_with_line(&l23), p2, 1e-6);
     }
 
     #[test]
@@ -643,10 +620,7 @@ mod tests {
         let line12_to_test = plane012.cross_with_plane(&plane123);
         assert!(!is_zero(line12_to_test.contra_tensor().raw.flatten()));
         let line12 = p1.line_to_point(&p2);
-        assert!(homogenous_vectors_equal(
-            line12_to_test.contra_tensor().raw.flatten(),
-            line12.contra_tensor().raw.flatten()
-        ));
+        assert_line3d_near(line12_to_test, line12, 1e-6);
     }
 
     #[test]
@@ -660,10 +634,7 @@ mod tests {
         let plane230 = p2.plane_to_points(&p3, &p0);
         let p2_to_test = plane012.cross_with_planes(&plane123, &plane230);
         assert!(!is_zero(&p2_to_test.contra_tensor().raw));
-        assert!(homogenous_vectors_equal(
-            &p2_to_test.contra_tensor().raw,
-            &p2.contra_tensor().raw
-        ));
+        assert_point_near(p2_to_test, p2, 1e-6);
     }
 
     fn is_zero(v0: &[T]) -> bool {

@@ -19,3 +19,6 @@ pub mod projective_primitives;
 pub mod scalar_traits;
 pub mod tensors;
 pub mod triangulator;
+
+#[cfg(test)]
+mod test_utils;

@@ -60,6 +60,53 @@ pub struct Tensor3<
     pub raw: [[[T; N2]; N1]; N0],
 }
 
+#[cfg(test)]
+pub fn assert_tensor1_collinear<S0: Space<N0>, const N0: usize>(
+    left: Tensor1<f64, S0, N0>,
+    right: Tensor1<f64, S0, N0>,
+    min_abs: f64,
+    precision: f64,
+) {
+    crate::test_utils::assert_collinear(&left.raw, &right.raw, min_abs, precision);
+}
+
+#[cfg(test)]
+pub fn assert_tensor2_collinear<S0: Space<N0>, S1: Space<N1>, const N0: usize, const N1: usize>(
+    left: Tensor2<f64, S0, S1, N0, N1>,
+    right: Tensor2<f64, S0, S1, N0, N1>,
+    min_abs: f64,
+    precision: f64,
+) {
+    crate::test_utils::assert_collinear(
+        left.raw.flatten(),
+        right.raw.flatten(),
+        min_abs,
+        precision,
+    );
+}
+
+#[cfg(test)]
+pub fn assert_tensor3_collinear<
+    S0: Space<N0>,
+    S1: Space<N1>,
+    S2: Space<N2>,
+    const N0: usize,
+    const N1: usize,
+    const N2: usize,
+>(
+    left: Tensor3<f64, S0, S1, S2, N0, N1, N2>,
+    right: Tensor3<f64, S0, S1, S2, N0, N1, N2>,
+    min_abs: f64,
+    precision: f64,
+) {
+    crate::test_utils::assert_collinear(
+        left.raw.flatten().flatten(),
+        right.raw.flatten().flatten(),
+        min_abs,
+        precision,
+    );
+}
+
 impl<T, S0: Space<N0>, const N0: usize> Tensor1<T, S0, N0> {
     #[inline]
     pub fn from_raw(s0: S0, raw: [T; N0]) -> Self {
@@ -941,7 +988,7 @@ mod tests {
     #[test]
     fn test_tensor1_descale() {
         let t1 = Tensor1::from_raw(S0, [10. * 12345., 20. * 12345.]);
-        assert!(homogenous_vectors_equal(&t1.clone().descale().raw, &t1.raw));
+        assert_tensor1_collinear(t1.clone().descale(), t1, 1e-3, 1e-6);
     }
 
     #[test]
@@ -951,10 +998,7 @@ mod tests {
             S1,
             [[10. * 12345., 20. * 12345.], [30. * 12345., 40. * 12345.]],
         );
-        assert!(homogenous_vectors_equal(
-            &t2.clone().descale().raw.flatten(),
-            &t2.raw.flatten()
-        ));
+        assert_tensor2_collinear(t2.clone().descale(), t2, 1e-3, 1e-6);
     }
 
     #[test]
@@ -968,10 +1012,7 @@ mod tests {
                 [[50. * 12345., 60. * 12345.], [70. * 12345., 80. * 12345.]],
             ],
         );
-        assert!(homogenous_vectors_equal(
-            &t3.clone().descale().raw.flatten().flatten(),
-            &t3.raw.flatten().flatten()
-        ));
+        assert_tensor3_collinear(t3.clone().descale(), t3, 1e-3, 1e-6);
     }
 
     #[test]
@@ -1266,20 +1307,5 @@ mod tests {
                 [[[-10, -20], [-30, -40]], [[-50, -60], [-70, -80]]]
             )
         );
-    }
-
-    fn homogenous_vectors_equal(v0: &[f64], v1: &[f64]) -> bool {
-        assert_eq!(
-            v0.len(),
-            v1.len(),
-            "homogenous vectors have different lengths"
-        );
-        let v0_max = v0.iter().max_by_key(|x| x.abs() as i64).unwrap();
-        assert_ne!(v0_max, &0., "first homogenous vector is zero vector");
-        let v1_max = v1.iter().max_by_key(|x| x.abs() as i64).unwrap();
-        assert_ne!(v1_max, &0., "second homogenous vector is zero vector");
-        let v0_fixed: Vec<f64> = v0.iter().map(|x| x * v1_max).collect();
-        let v1_fixed: Vec<f64> = v1.iter().map(|x| x * v0_max).collect();
-        v0_fixed == v1_fixed
     }
 }
