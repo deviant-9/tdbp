@@ -15,6 +15,7 @@ pub mod homogeneous_equations;
 pub mod homography;
 pub mod homography_from_points;
 pub mod levi_civita;
+pub mod model_fitting;
 pub mod non_homogeneous_equations;
 pub mod projective_primitives;
 pub mod scalar_traits;
