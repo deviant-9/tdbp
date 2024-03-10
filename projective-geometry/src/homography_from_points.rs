@@ -115,7 +115,7 @@ macro_rules! from_points_impl {
                 if points.len() < $n + 1 {
                     return Err(FromPointsError::NotEnoughPoints);
                 }
-                let points_a: Box<[[[T; $n * $n]; $n - 1]]> = points
+                let points_a: Vec<[[T; $n * $n]; $n - 1]> = points
                     .iter()
                     .map(|(in_point, out_point)| {
                         get_ax_collinear_y_equations_for_a(

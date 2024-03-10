@@ -2,7 +2,7 @@ use crate::scalar_traits::Zero;
 use std::ops::{Div, Mul, Sub};
 
 pub trait NonHomogeneousSolver<T> {
-    fn solve(&self, a: &[&[T]], b: &[T]) -> Box<[T]>;
+    fn solve(&self, a: &[&[T]], b: &[T]) -> Vec<T>;
 }
 
 pub struct NonHomogeneousSolverImpl {}
@@ -19,19 +19,19 @@ where
     for<'a, 'b> &'a T: Mul<&'b T, Output = T>,
     for<'a, 'b> &'a T: Div<&'b T, Output = T>,
 {
-    fn solve(&self, a: &[&[T]], b: &[T]) -> Box<[T]> {
+    fn solve(&self, a: &[&[T]], b: &[T]) -> Vec<T> {
         let n = b.len();
         assert_eq!(a.len(), n);
         for a_i in a {
             assert_eq!(a_i.len(), n);
         }
-        let mut flat_a: Box<[T]> = a
+        let mut flat_a: Vec<T> = a
             .into_iter()
             .map(|a_i| a_i.iter().cloned())
             .flatten()
             .collect();
-        let mut a: Box<[&mut [T]]> = flat_a.chunks_exact_mut(n).collect();
-        let mut b: Box<[T]> = b.iter().cloned().collect();
+        let mut a: Vec<&mut [T]> = flat_a.chunks_exact_mut(n).collect();
+        let mut b: Vec<T> = b.iter().cloned().collect();
         assert_eq!(a.len(), n);
         assert_eq!(b.len(), n);
         for j in 0..n {
